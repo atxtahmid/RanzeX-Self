@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Joiner - RanzeX</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .main-container {
+            width: 95%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px 100px;
+            display: none;
+            opacity: 0;
+        }
+
+        .page-loaded .main-container {
+            display: block;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, #a29bfe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .section-card {
+            background: #111116;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            background: #050508;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 12px;
+            outline: none;
+            transition: 0.3s;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            border-color: #8a2be2;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.2);
+        }
+
+        .btn-join {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #8a2be2, #6c5ce7);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 20px rgba(138, 43, 226, 0.3);
+            margin-top: 15px;
+        }
+
+        .btn-join:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.5);
+        }
+
+        .btn-join:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            background: #333;
+        }
+
+        .preview-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: #15151a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 1px solid #8a2be2;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .preview-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            object-fit: cover;
+            background: #333;
+            flex-shrink: 0;
+        }
+
+        .preview-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .preview-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 5px;
+            word-break: break-word;
+        }
+
+        .preview-id {
+            font-size: 0.85rem;
+            color: #888;
+            font-family: monospace;
+            margin-bottom: 8px;
+        }
+
+        .preview-stats {
+            display: flex;
+            gap: 20px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .preview-stats span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .preview-stats .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+            display: inline-block;
+        }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .result-success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #2ecc71;
+            color: #2ecc71;
+        }
+
+        .result-error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .result-info {
+            background: rgba(241, 196, 15, 0.1);
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .loading-text {
+            color: #8a2be2;
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 1000;
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.3s;
+        }
+
+        .back-btn:hover {
+            color: #fff;
+        }
+
+        .warning-text {
+            color: #ffaa00;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: block;
+        }
+
+        @media(max-width: 768px) {
+            .main-container {
+                width: 100%;
+                padding: 80px 15px;
+            }
+
+            .back-btn {
+                top: 20px;
+                left: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .preview-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .preview-stats {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body class="page-loaded">
+
+    <a href="/commands" class="back-btn">← Back</a>
+
+    <div class="main-container">
+        <div class="header">
+            <h1>Server Joiner</h1>
+            <p>Join Discord servers via invite link or code.</p>
+        </div>
+
+        <div class="section-card">
+            <label class="input-label">Invite Link or Code</label>
+            <input type="text" id="inviteInput" class="input-field"
+                placeholder="https://discord.gg/abc123  or  abc123" oninput="onInviteInput()">
+            <span class="warning-text">
+                <i class="fas fa-info-circle"></i>
+                Accepts <b>discord.gg/xxx</b>, <b>discord.com/invite/xxx</b>, or raw codes.
+            </span>
+
+            <div id="previewArea"></div>
+
+            <button id="joinBtn" class="btn-join" disabled onclick="doJoin()">
+                <i class="fas fa-door-open"></i> Join Server
+            </button>
+
+            <div id="resultBox" class="result-box"></div>
+        </div>
+    </div>
+
+    <%- include('partials/super_button') %>
+
+        <script>
+            let debounceTimer;
+            let currentCode = null;
+            let previewData = null;
+
+            function onInviteInput() {
+                clearTimeout(debounceTimer);
+                const input = document.getElementById('inviteInput').value.trim();
+                const previewArea = document.getElementById('previewArea');
+                const joinBtn = document.getElementById('joinBtn');
+                const resultBox = document.getElementById('resultBox');
+
+                currentCode = null;
+                previewData = null;
+                joinBtn.disabled = true;
+                resultBox.style.display = 'none';
+
+                if (input.length < 3) {
+                    previewArea.innerHTML = '';
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => loadPreview(input), 600);
+            }
+
+            async function loadPreview(invite) {
+                const previewArea = document.getElementById('previewArea');
+                previewArea.innerHTML = '<div class="loading-text">Fetching invite info...</div>';
+
+                try {
+                    const res = await fetch('/api/join-server/preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invite })
+                    });
+                    const data = await res.json();
+
+                    if (!data.success) {
+                        previewArea.innerHTML = `<div class="result-box result-error" style="display:block;">
+                            <i class="fas fa-times-circle"></i> ${data.error || 'Invalid invite'}
+                        </div>`;
+                        return;
+                    }
+
+                    currentCode = data.code;
+                    previewData = data.guild;
+
+                    previewArea.innerHTML = `
+                        <div class="preview-card">
+                            <img src="${data.guild.icon}" class="preview-icon" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            <div class="preview-info">
+                                <div class="preview-name">${data.guild.name}</div>
+                                <div class="preview-id">ID: ${data.guild.id}</div>
+                                <div class="preview-stats">
+                                    <span><i class="fas fa-users"></i> ${data.guild.memberCount} members</span>
+                                    <span><span class="dot"></span> ${data.guild.onlineCount} online</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('joinBtn').disabled = false;
+                } catch (e) {
+                    previewArea.innerHTML = `<div class="result-box result-error" style="display:block;">
+                        <i class="fas fa-times-circle"></i> Network error: ${e.message}
+                    </div>`;
+                }
+            }
+
+            async function doJoin() {
+                if (!currentCode) return;
+
+                const joinBtn = document.getElementById('joinBtn');
+                const resultBox = document.getElementById('resultBox');
+
+                joinBtn.disabled = true;
+                joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+                resultBox.style.display = 'none';
+
+                try {
+                    const res = await fetch('/api/join-server/join', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invite: currentCode })
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        resultBox.className = 'result-box result-success';
+                        resultBox.innerHTML = `<i class="fas fa-check-circle"></i> Successfully joined <b>${data.guild?.name || 'server'}</b>!`;
+                        resultBox.style.display = 'block';
+                    } else {
+                        const err = data.error || 'Failed to join';
+                        const isInfo = err.toLowerCase().includes('already') || err.toLowerCase().includes('rate');
+                        resultBox.className = 'result-box ' + (isInfo ? 'result-info' : 'result-error');
+                        const icon = isInfo ? 'fa-info-circle' : 'fa-times-circle';
+                        resultBox.innerHTML = `<i class="fas ${icon}"></i> ${err}`;
+                        resultBox.style.display = 'block';
+                    }
+                } catch (e) {
+                    resultBox.className = 'result-box result-error';
+                    resultBox.innerHTML = `<i class="fas fa-times-circle"></i> Error: ${e.message}`;
+                    resultBox.style.display = 'block';
+                }
+
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = '<i class="fas fa-door-open"></i> Join Server';
+            }
+        </script>
+</body>
+
+</html>

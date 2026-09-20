@@ -831,6 +831,81 @@ module.exports = (clients) => {
         }
     });
 
+    const joiner = require('../commands/joinserver');
+
+    app.get('/commands/joiner', (req, res) => {
+        res.render('cmd_joiner', { user: req.client.user, page: 'commands' });
+    });
+
+    app.post('/api/join-server/preview', async (req, res) => {
+        const { invite } = req.body;
+        if (!invite) return res.status(400).json({ success: false, error: 'Missing invite' });
+
+        const code = joiner.extractInviteCode(invite);
+        if (!code) return res.status(400).json({ success: false, error: 'Invalid invite format' });
+
+        try {
+            const result = await joiner.previewInvite(req.client, code);
+
+            if (result.status === 404) {
+                return res.json({ success: false, error: 'Invite not found or expired' });
+            }
+            if (result.status === 429) {
+                return res.json({ success: false, error: `Rate limited. Try again in ${Math.ceil(result.data.retry_after || 5)}s` });
+            }
+            if (result.status !== 200) {
+                return res.json({ success: false, error: result.data.message || `HTTP ${result.status}` });
+            }
+
+            const guild = result.data.guild;
+            const iconUrl = guild?.icon
+                ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`
+                : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+            res.json({
+                success: true,
+                code,
+                guild: {
+                    id: guild?.id || 'N/A',
+                    name: guild?.name || 'Unknown',
+                    icon: iconUrl,
+                    memberCount: result.data.approximate_member_count || '?',
+                    onlineCount: result.data.approximate_presence_count || '?'
+                }
+            });
+        } catch (e) {
+            res.status(500).json({ success: false, error: e.message });
+        }
+    });
+
+    app.post('/api/join-server/join', async (req, res) => {
+        const { invite } = req.body;
+        if (!invite) return res.status(400).json({ success: false, error: 'Missing invite' });
+
+        const code = joiner.extractInviteCode(invite);
+        if (!code) return res.status(400).json({ success: false, error: 'Invalid invite format' });
+
+        try {
+            const result = await joiner.joinInvite(req.client, code);
+
+            if (result.status === 200) {
+                return res.json({
+                    success: true,
+                    guild: { id: result.data.guild?.id, name: result.data.guild?.name }
+                });
+            }
+
+            if (result.status === 429) {
+                return res.json({ success: false, error: `Rate limited. Try again in ${Math.ceil(result.data.retry_after || 5)}s` });
+            }
+
+            const msg = result.data.message || `HTTP ${result.status}`;
+            res.json({ success: false, error: msg });
+        } catch (e) {
+            res.status(500).json({ success: false, error: e.message });
+        }
+    });
+
     app.get('/commands/:category', (req, res) => {
         const category = req.params.category;
         res.render('commands_sub', {

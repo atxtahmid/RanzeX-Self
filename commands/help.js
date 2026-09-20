@@ -36,6 +36,10 @@ module.exports = {
                 name: '<ip>',
                 description: 'IP Lookup (e.g. "ip 1.1.1.1")'
             });
+            categories['Utility'].push({
+                name: 'joinserver',
+                description: 'Join a server via invite (e.g. "joinserver discord.gg/xxx")'
+            });
         }
 
         let replyMsg = null;
