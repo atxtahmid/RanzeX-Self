@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RanzeX Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" href="/favicon.ico">
+    <style>
+        .dashboard-container {
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            color: #e74c3c;
+            text-decoration: none;
+            font-weight: bold;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 10;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .logout-btn {
+                top: 15px;
+                right: 15px;
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .logout-text {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard-container home-container">
+        <a href="/logout" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> <span class="logout-text">Logout</span>
+        </a>
+
+        <div class="left-section">
+            <div class="profile-section">
+                <% let strokeClass='stroke-offline' ; if(status==='online' ) strokeClass='stroke-online' ;
+                    if(status==='idle' ) strokeClass='stroke-idle' ; if(status==='dnd' ) strokeClass='stroke-dnd' ; %>
+
+                    <div class="avatar-wrapper <%= strokeClass %>">
+                        <img src="<%= user.displayAvatarURL({ format: 'png', dynamic: true, size: 512 }) %>"
+                            alt="Avatar" class="avatar">
+                    </div>
+            </div>
+
+            <div style="text-align: center;">
+                <h1 class="username">
+                    <%= user.username %>
+                        <span class="discriminator">#<%= user.discriminator %></span>
+                </h1>
+
+                <div class="uptime-section">
+                    <div class="title">System Uptime</div>
+                    <div class="uptime-badge">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <form id="statusForm" action="/update-status" method="POST" class="settings-form">
+                <div class="form-group">
+                    <label>Status Mode</label>
+                    <div class="status-options">
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="online" <%=status==='online' ? 'checked' : '' %>>
+                            <span class="radio-btn online">Online</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="idle" <%=status==='idle' ? 'checked' : '' %>>
+                            <span class="radio-btn idle">Idle</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="dnd" <%=status==='dnd' ? 'checked' : '' %>>
+                            <span class="radio-btn dnd">DND</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="status" value="invisible" <%=status==='invisible' ? 'checked' : ''
+                                %>>
+                            <span class="radio-btn offline">Invisible</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Custom Message</label>
+                    <input type="text" name="custom_status" class="input-field" placeholder="Playing with code..."
+                        value="<%= currentActivity %>">
+                </div>
+
+                <div class="form-group">
+                    <label>Emoji (Nitro Support)</label>
+                    <input type="text" name="emoji" class="input-field" placeholder="🍕 or <:name:id>"
+                        value="<%= currentEmoji %>">
+                    <small class="hint">Paste emoji or use ID format for custom ones</small>
+                </div>
+
+                <button type="submit" id="updateStatusBtn" class="save-btn">Update Status</button>
+            </form>
+        </div>
+
+        <div class="right-section">
+            <img src="https://lanyard.cnrad.dev/api/1292595486129389608?bg=000000&borderRadius=20px&idleMessage=Sleeping...&theme=dark&showDisplayName=true"
+                class="brand-image" id="brandImage" alt="Brand Status">
+
+            <div class="creator-text">
+                made with RanzeX by 6xux
+            </div>
+
+            <% if (typeof clients !== 'undefined' && clients.length > 0) { %>
+            <div class="custom-dropdown-container">
+                <div class="custom-dropdown-label">Switch Account</div>
+                <div class="custom-dropdown" id="accountDropdown">
+                    <% 
+                        let activeClient = clients.find(c => c.tokenKey === (typeof activeClientKey !== 'undefined' ? activeClientKey : 'TOKEN')) || clients[0];
+                    %>
+                    <div class="dropdown-selected" onclick="toggleDropdown()">
+                        <img src="<%= activeClient.user ? activeClient.user.displayAvatarURL({ format: 'png', size: 64 }) : '/super.png' %>" alt="avatar">
+                        <span><%= activeClient.user ? activeClient.user.username : activeClient.tokenKey %></span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="dropdown-options" id="dropdownOptions">
+                        <% clients.forEach(function(c) { %>
+                            <div class="dropdown-option <%= activeClient.tokenKey === c.tokenKey ? 'active' : '' %>" onclick="switchClient('<%= c.tokenKey %>')">
+                                <img src="<%= c.user ? c.user.displayAvatarURL({ format: 'png', size: 64 }) : '/super.png' %>" alt="avatar">
+                                <span><%= c.user ? c.user.username : c.tokenKey %></span>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .custom-dropdown-container {
+                    margin-top: 20px;
+                    text-align: left;
+                    width: 100%;
+                    max-width: 250px;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                .custom-dropdown-label {
+                    color: #b9bbbe;
+                    font-size: 0.85rem;
+                    margin-bottom: 8px;
+                    text-transform: uppercase;
+                    font-weight: bold;
+                    letter-spacing: 0.5px;
+                }
+                .custom-dropdown {
+                    position: relative;
+                    user-select: none;
+                }
+                .dropdown-selected {
+                    background: rgba(32, 34, 37, 0.8);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    padding: 10px 15px;
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    backdrop-filter: blur(10px);
+                }
+                .dropdown-selected:hover {
+                    background: rgba(47, 49, 54, 0.9);
+                    border-color: rgba(255, 255, 255, 0.2);
+                }
+                .dropdown-selected img {
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    margin-right: 10px;
+                    object-fit: cover;
+                }
+                .dropdown-selected span {
+                    color: #fff;
+                    font-weight: 500;
+                    flex-grow: 1;
+                }
+                .dropdown-selected i {
+                    color: #b9bbbe;
+                    font-size: 0.8rem;
+                    transition: transform 0.3s ease;
+                }
+                .custom-dropdown.open .dropdown-selected i {
+                    transform: rotate(180deg);
+                }
+                .dropdown-options {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    margin-top: 8px;
+                    background: #2f3136;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    opacity: 0;
+                    visibility: hidden;
+                    transform: translateY(-10px);
+                    transition: all 0.3s ease;
+                    z-index: 100;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+                }
+                .custom-dropdown.open .dropdown-options {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateY(0);
+                }
+                .dropdown-option {
+                    padding: 10px 15px;
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                    transition: background 0.2s ease;
+                }
+                .dropdown-option:hover {
+                    background: rgba(255, 255, 255, 0.05);
+                }
+                .dropdown-option.active {
+                    background: rgba(162, 155, 254, 0.2);
+                    border-left: 3px solid var(--primary-color);
+                }
+                .dropdown-option.active span {
+                    color: var(--primary-color);
+                }
+                .dropdown-option img {
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    margin-right: 10px;
+                    object-fit: cover;
+                }
+                .dropdown-option span {
+                    color: #dcddde;
+                    font-weight: 500;
+                }
+            </style>
+            <% } %>
+        </div>
+
+    </div>
+
+    <script>
+        let uptimeSeconds = <%= uptimeSeconds %>;
+
+        function toggleDropdown() {
+            document.getElementById('accountDropdown').classList.toggle('open');
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('accountDropdown');
+            if (dropdown && !dropdown.contains(event.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+
+        function switchClient(key) {
+            fetch('/api/switch_client', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    window.location.reload();
+                }
+            });
+        }
+
+        function updateUptime() {
+            uptimeSeconds++;
+            let diff = uptimeSeconds;
+
+            let days = Math.floor(diff / 86400);
+            diff %= 86400;
+            let hours = Math.floor(diff / 3600);
+            diff %= 3600;
+            let minutes = Math.floor(diff / 60);
+            let seconds = Math.floor(diff % 60);
+
+            const uptimeStr = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+            document.querySelector('.uptime-badge').innerText = uptimeStr;
+        }
+
+        setInterval(updateUptime, 1000);
+        updateUptime();
+
+        document.getElementById('statusForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('updateStatusBtn');
+            const originalText = btn.innerText;
+
+            btn.disabled = true;
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await fetch('/update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    btn.style.transition = 'background-color 0.3s';
+                    btn.style.backgroundColor = '#43b581';
+                    btn.innerText = 'Saved!';
+
+                    setTimeout(() => {
+                        btn.style.backgroundColor = '';
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to save status.');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error saving status.');
+                btn.disabled = false;
+            }
+        });
+
+        setInterval(() => {
+            const img = document.getElementById('brandImage');
+            if (img) {
+                const currentSrc = img.src.split('&t=')[0];
+                img.src = `${currentSrc}&t=${Date.now()}`;
+            }
+        }, 15000);
+    </script>
+    <%- include('partials/super_button') %>
+</body>
+
+</html>
