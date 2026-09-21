@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel Manager - RanzeX</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .main-container {
+            width: 95%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px 100px;
+            display: none;
+            opacity: 0;
+        }
+
+        .page-loaded .main-container {
+            display: block;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, #a29bfe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            background: #111116;
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: #ccc;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(90deg, #8a2be2, #6c5ce7);
+            color: #fff;
+            box-shadow: 0 5px 20px rgba(138, 43, 226, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s forwards;
+        }
+
+        .section-card {
+            background: #111116;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #a29bfe;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            background: #050508;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 10px;
+            outline: none;
+            transition: 0.3s;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        .input-field:focus {
+            border-color: #8a2be2;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.2);
+        }
+
+        select.input-field {
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .radio-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .radio-card {
+            flex: 1;
+            min-width: 140px;
+            cursor: pointer;
+        }
+
+        .radio-card input {
+            display: none;
+        }
+
+        .radio-card-content {
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #aaa;
+        }
+
+        .radio-card-content i {
+            font-size: 1.3rem;
+        }
+
+        .radio-card input:checked+.radio-card-content {
+            border-color: #8a2be2;
+            background: rgba(138, 43, 226, 0.15);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.2);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 15px;
+        }
+
+        .toggle-row-info {
+            flex: 1;
+        }
+
+        .toggle-row-info b {
+            color: #fff;
+        }
+
+        .toggle-row-info p {
+            color: #888;
+            font-size: 0.85rem;
+            margin: 4px 0 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 55px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #8a2be2;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(27px);
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #8a2be2, #6c5ce7);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 20px rgba(138, 43, 226, 0.3);
+            margin-top: 10px;
+            font-family: inherit;
+        }
+
+        .btn-action:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.5);
+        }
+
+        .btn-action:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            background: #333;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            box-shadow: 0 10px 30px rgba(231, 76, 60, 0.5);
+        }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #2ecc71;
+            color: #2ecc71;
+        }
+
+        .result-error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .result-info {
+            background: rgba(241, 196, 15, 0.1);
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .channel-list {
+            max-height: 550px;
+            overflow-y: auto;
+            padding-right: 8px;
+            border-radius: 12px;
+        }
+
+        .channel-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .channel-list::-webkit-scrollbar-track {
+            background: #0a0a0f;
+            border-radius: 10px;
+        }
+
+        .channel-list::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+        }
+
+        .channel-list::-webkit-scrollbar-thumb:hover {
+            background: #8a2be2;
+        }
+
+        .category-group {
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .category-header {
+            padding: 12px 15px;
+            background: rgba(138, 43, 226, 0.08);
+            font-weight: 700;
+            color: #a29bfe;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .category-header input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #8a2be2;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 15px 10px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .channel-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .channel-item input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #8a2be2;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .channel-item input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+            opacity: 0.3;
+        }
+
+        .channel-icon {
+            width: 20px;
+            text-align: center;
+            color: #888;
+            flex-shrink: 0;
+        }
+
+        .channel-name {
+            flex: 1;
+            color: #ddd;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .channel-badges {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-nsfw {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .badge-private {
+            background: rgba(241, 196, 15, 0.15);
+            color: #f1c40f;
+            border: 1px solid rgba(241, 196, 15, 0.3);
+        }
+
+        .badge-locked {
+            background: rgba(150, 150, 150, 0.15);
+            color: #999;
+            border: 1px solid rgba(150, 150, 150, 0.2);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            margin-bottom: 15px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-info {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .toolbar-info b {
+            color: #8a2be2;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-mini {
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+            color: #ccc;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+        .btn-mini:hover {
+            background: rgba(138, 43, 226, 0.15);
+            border-color: #8a2be2;
+            color: #fff;
+        }
+
+        .loading-text {
+            color: #8a2be2;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .empty-msg {
+            color: #666;
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 1000;
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.3s;
+        }
+
+        .back-btn:hover {
+            color: #fff;
+        }
+
+        @media(max-width: 768px) {
+            .main-container {
+                width: 100%;
+                padding: 80px 15px;
+            }
+
+            .back-btn {
+                top: 20px;
+                left: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-btn {
+                font-size: 0.9rem;
+                padding: 12px 8px;
+            }
+
+            .channel-item {
+                padding-left: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body class="page-loaded">
+
+    <a href="/commands" class="back-btn">← Back</a>
+
+    <div class="main-container">
+        <div class="header">
+            <h1>Channel Manager</h1>
+            <p>Create and delete channels with ease.</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('creator')" id="tabCreator">
+                <i class="fas fa-plus-circle"></i> Channel Creator
+            </button>
+            <button class="tab-btn" onclick="switchTab('deleter')" id="tabDeleter">
+                <i class="fas fa-trash-alt"></i> Channel Deleter
+            </button>
+        </div>
+
+        <div id="contentCreator" class="tab-content active">
+            <div class="section-card">
+                <div class="section-title">
+                    <i class="fas fa-hammer"></i> Create New Channel
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Server</label>
+                    <select id="createGuild" class="input-field" onchange="onCreateGuildChange()">
+                        <option value="">Loading servers...</option>
+                    </select>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group full-width">
+                        <label class="input-label">Channel Name</label>
+                        <input type="text" id="createName" class="input-field"
+                            placeholder="e.g. general-chat or 🔊-voice-lounge" maxlength="100">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Channel Type</label>
+                        <select id="createType" class="input-field" onchange="onCreateTypeChange()">
+                            <option value="GUILD_TEXT">Text Channel</option>
+                            <option value="GUILD_VOICE">Voice Channel</option>
+                            <option value="GUILD_CATEGORY">Category</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Category (optional)</label>
+                        <select id="createParent" class="input-field">
+                            <option value="">No Category</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group full-width" id="topicGroup">
+                        <label class="input-label">Topic (optional, text channels only)</label>
+                        <input type="text" id="createTopic" class="input-field"
+                            placeholder="What's this channel about?" maxlength="1024">
+                    </div>
+                </div>
+
+                <div class="input-group full-width">
+                    <label class="input-label">Privacy</label>
+                    <div class="radio-row">
+                        <label class="radio-card">
+                            <input type="radio" name="privacy" value="public" checked>
+                            <div class="radio-card-content">
+                                <i class="fas fa-globe"></i>
+                                <span>Public</span>
+                                <small style="color:#666; font-weight:400;">Everyone can see</small>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="privacy" value="private">
+                            <div class="radio-card-content">
+                                <i class="fas fa-lock"></i>
+                                <span>Private</span>
+                                <small style="color:#666; font-weight:400;">Only staff can see</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="toggle-row" id="nsfwToggleRow">
+                    <div class="toggle-row-info">
+                        <b><i class="fas fa-exclamation-triangle"></i> NSFW Channel</b>
+                        <p>Mark as age-restricted (text channels only)</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="createNsfw">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <button class="btn-action" id="btnCreate" onclick="createChannel()" disabled>
+                    <i class="fas fa-plus"></i> Create Channel
+                </button>
+
+                <div id="createResult" class="result-box"></div>
+            </div>
+        </div>
+
+        <div id="contentDeleter" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">
+                    <i class="fas fa-server"></i> Select Server
+                </div>
+                <div class="input-group">
+                    <select id="deleteGuild" class="input-field" onchange="loadChannelsForDelete()">
+                        <option value="">Loading servers...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">
+                    <i class="fas fa-list"></i> Channels
+                </div>
+
+                <div class="toolbar">
+                    <div class="toolbar-info">
+                        Selected: <b id="selectedCount">0</b>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn-mini" onclick="selectAll(true)">Select All</button>
+                        <button class="btn-mini" onclick="selectAll(false)">Clear</button>
+                    </div>
+                </div>
+
+                <div class="channel-list" id="channelList">
+                    <div class="empty-msg">Select a server to view its channels.</div>
+                </div>
+
+                <button class="btn-action btn-danger" id="btnDelete" onclick="deleteSelected()" disabled>
+                    <i class="fas fa-trash"></i> Delete Selected Channels
+                </button>
+
+                <div id="deleteResult" class="result-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/super_button') %>
+
+        <script>
+            let createGuildData = null;
+            let currentChannels = [];
+
+            function switchTab(tab) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                if (tab === 'creator') {
+                    document.getElementById('tabCreator').classList.add('active');
+                    document.getElementById('contentCreator').classList.add('active');
+                } else {
+                    document.getElementById('tabDeleter').classList.add('active');
+                    document.getElementById('contentDeleter').classList.add('active');
+                }
+            }
+
+            async function loadGuilds() {
+                try {
+                    const res = await fetch('/api/channels/guilds');
+                    const guilds = await res.json();
+
+                    const populate = (selectId) => {
+                        const sel = document.getElementById(selectId);
+                        sel.innerHTML = '<option value="">Select Server...</option>';
+                        if (!guilds.length) {
+                            sel.innerHTML = '<option value="">No servers with Manage Channels permission</option>';
+                            return;
+                        }
+                        guilds.forEach(g => {
+                            sel.innerHTML += `<option value="${g.id}">${g.name}</option>`;
+                        });
+                    };
+
+                    populate('createGuild');
+                    populate('deleteGuild');
+                } catch (e) { console.error(e); }
+            }
+
+            async function onCreateGuildChange() {
+                const guildId = document.getElementById('createGuild').value;
+                const parentSelect = document.getElementById('createParent');
+                const btn = document.getElementById('btnCreate');
+
+                parentSelect.innerHTML = '<option value="">No Category</option>';
+                createGuildData = null;
+                btn.disabled = true;
+
+                if (!guildId) return;
+
+                try {
+                    const res = await fetch(`/api/channels/${guildId}`);
+                    const data = await res.json();
+
+                    if (data.error) {
+                        showResult('createResult', 'error', data.error);
+                        return;
+                    }
+
+                    createGuildData = data;
+
+                    (data.categories || []).forEach(c => {
+                        parentSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                    });
+
+                    btn.disabled = false;
+                } catch (e) {
+                    showResult('createResult', 'error', 'Failed to load server data');
+                }
+            }
+
+            function onCreateTypeChange() {
+                const type = document.getElementById('createType').value;
+                const topicGroup = document.getElementById('topicGroup');
+                const nsfwRow = document.getElementById('nsfwToggleRow');
+                const parentSelect = document.getElementById('createParent');
+
+                if (type === 'GUILD_CATEGORY') {
+                    topicGroup.style.display = 'none';
+                    nsfwRow.style.display = 'none';
+                    parentSelect.disabled = true;
+                    parentSelect.value = '';
+                } else {
+                    topicGroup.style.display = 'block';
+                    nsfwRow.style.display = 'flex';
+                    parentSelect.disabled = false;
+                }
+            }
+
+            async function createChannel() {
+                const guildId = document.getElementById('createGuild').value;
+                const name = document.getElementById('createName').value.trim();
+                const type = document.getElementById('createType').value;
+                const parentId = document.getElementById('createParent').value;
+                const nsfw = document.getElementById('createNsfw').checked;
+                const topic = document.getElementById('createTopic').value.trim();
+                const privacy = document.querySelector('input[name="privacy"]:checked').value;
+                const btn = document.getElementById('btnCreate');
+
+                if (!guildId || !name) {
+                    showResult('createResult', 'error', 'Please select a server and enter a name.');
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+                try {
+                    const res = await fetch('/api/channels/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ guildId, name, type, parentId, nsfw, topic, privacy })
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        showResult('createResult', 'success',
+                            `✅ Created <b>${type === 'GUILD_CATEGORY' ? 'category' : 'channel'}</b>: ${name}`);
+
+                        document.getElementById('createName').value = '';
+                        document.getElementById('createTopic').value = '';
+                        document.getElementById('createNsfw').checked = false;
+
+                        onCreateGuildChange();
+                    } else {
+                        showResult('createResult', 'error', '❌ ' + (data.error || 'Failed to create channel'));
+                    }
+                } catch (e) {
+                    showResult('createResult', 'error', '❌ Network error: ' + e.message);
+                }
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Create Channel';
+            }
+
+            function showResult(elementId, type, message) {
+                const el = document.getElementById(elementId);
+                el.className = 'result-box result-' + type;
+                el.innerHTML = message;
+                el.style.display = 'block';
+            }
+
+            async function loadChannelsForDelete() {
+                const guildId = document.getElementById('deleteGuild').value;
+                const listEl = document.getElementById('channelList');
+                const deleteBtn = document.getElementById('btnDelete');
+
+                currentChannels = [];
+                deleteBtn.disabled = true;
+                updateSelectedCount();
+
+                if (!guildId) {
+                    listEl.innerHTML = '<div class="empty-msg">Select a server to view its channels.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '<div class="loading-text">Loading channels...</div>';
+
+                try {
+                    const res = await fetch(`/api/channels/${guildId}`);
+                    const data = await res.json();
+
+                    if (data.error) {
+                        listEl.innerHTML = `<div class="empty-msg" style="color:#e74c3c;">${data.error}</div>`;
+                        return;
+                    }
+
+                    currentChannels = data.channels || [];
+                    renderChannelList();
+                } catch (e) {
+                    listEl.innerHTML = '<div class="empty-msg" style="color:#e74c3c;">Failed to load channels.</div>';
+                }
+            }
+
+            function renderChannelList() {
+                const listEl = document.getElementById('channelList');
+                listEl.innerHTML = '';
+
+                if (!currentChannels.length) {
+                    listEl.innerHTML = '<div class="empty-msg">No channels found.</div>';
+                    return;
+                }
+
+                const categories = currentChannels.filter(c => c.type === 'GUILD_CATEGORY');
+                const orphans = currentChannels.filter(c => c.type !== 'GUILD_CATEGORY' && !c.parentId);
+
+                const makeItem = (c, inCategory) => {
+                    const icon = getChannelIcon(c.type);
+                    const badges = [];
+
+                    if (c.nsfw) badges.push('<span class="badge badge-nsfw">NSFW</span>');
+                    if (!c.deletable) badges.push('<span class="badge badge-locked">Locked</span>');
+
+                    return `
+                        <div class="channel-item">
+                            <input type="checkbox" class="channel-checkbox" data-id="${c.id}" ${!c.deletable ? 'disabled' : ''} onchange="updateSelectedCount()">
+                            <i class="${icon} channel-icon"></i>
+                            <span class="channel-name">${escapeHtml(c.name)}</span>
+                            <div class="channel-badges">${badges.join('')}</div>
+                        </div>
+                    `;
+                };
+
+                if (orphans.length) {
+                    const group = document.createElement('div');
+                    group.className = 'category-group';
+                    group.innerHTML = `<div class="category-header"><i class="fas fa-folder-open"></i> No Category</div>` +
+                        orphans.map(c => makeItem(c, false)).join('');
+                    listEl.appendChild(group);
+                }
+
+                categories.forEach(cat => {
+                    const children = currentChannels.filter(c => c.parentId === cat.id);
+
+                    const group = document.createElement('div');
+                    group.className = 'category-group';
+                    group.innerHTML = `
+                        <div class="category-header">
+                            <i class="fas fa-folder"></i> ${escapeHtml(cat.name)} <span style="color:#666; font-weight:400; font-size:0.8rem; margin-left:6px;">(${children.length})</span>
+                        </div>
+                        ${children.map(c => makeItem(c, true)).join('')}
+                    `;
+                    listEl.appendChild(group);
+                });
+            }
+
+            function getChannelIcon(type) {
+                const map = {
+                    'GUILD_TEXT': 'fas fa-hashtag',
+                    'GUILD_VOICE': 'fas fa-volume-up',
+                    'GUILD_CATEGORY': 'fas fa-folder',
+                    'GUILD_NEWS': 'fas fa-bullhorn',
+                    'GUILD_STAGE_VOICE': 'fas fa-microphone',
+                    'GUILD_FORUM': 'fas fa-comments',
+                    'GUILD_ANNOUNCEMENT': 'fas fa-bullhorn'
+                };
+                return map[type] || 'fas fa-hashtag';
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function updateSelectedCount() {
+                const checked = document.querySelectorAll('.channel-checkbox:checked');
+                document.getElementById('selectedCount').innerText = checked.length;
+                document.getElementById('btnDelete').disabled = checked.length === 0;
+            }
+
+            function selectAll(state) {
+                document.querySelectorAll('.channel-checkbox:not(:disabled)').forEach(cb => {
+                    cb.checked = state;
+                });
+                updateSelectedCount();
+            }
+
+            async function deleteSelected() {
+                const guildId = document.getElementById('deleteGuild').value;
+                const checked = document.querySelectorAll('.channel-checkbox:checked');
+                const ids = Array.from(checked).map(cb => cb.dataset.id);
+
+                if (!guildId || ids.length === 0) return;
+
+                if (!confirm(`Delete ${ids.length} channel(s)? This cannot be undone.`)) return;
+
+                const btn = document.getElementById('btnDelete');
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting ${ids.length}...`;
+
+                try {
+                    const res = await fetch('/api/channels/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ guildId, channelIds: ids })
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        const d = data.deleted?.length || 0;
+                        const f = data.failed?.length || 0;
+                        const type = f > 0 ? 'info' : 'success';
+                        let msg = `✅ Deleted: <b>${d}</b>`;
+                        if (f > 0) msg += ` | ⚠️ Failed: <b>${f}</b>`;
+                        showResult('deleteResult', type, msg);
+
+                        loadChannelsForDelete();
+                    } else {
+                        showResult('deleteResult', 'error', '❌ ' + (data.error || 'Failed'));
+                    }
+                } catch (e) {
+                    showResult('deleteResult', 'error', '❌ Network error: ' + e.message);
+                }
+
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete Selected Channels';
+                updateSelectedCount();
+            }
+
+            window.onload = () => {
+                loadGuilds();
+                onCreateTypeChange();
+            };
+        </script>
+</body>
+
+</html>

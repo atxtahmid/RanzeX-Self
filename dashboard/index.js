@@ -906,6 +906,137 @@ module.exports = (clients) => {
         }
     });
 
+    app.get('/commands/channels', (req, res) => {
+        res.render('cmd_channels', { user: req.client.user, page: 'commands' });
+    });
+
+    app.get('/api/channels/guilds', (req, res) => {
+        try {
+            const guilds = req.client.guilds.cache
+                .filter(g => {
+                    const member = g.members.cache.get(req.client.user.id);
+                    return member ? member.permissions.has('MANAGE_CHANNELS') : false;
+                })
+                .map(g => ({
+                    id: g.id,
+                    name: g.name,
+                    icon: g.iconURL({ dynamic: true, size: 64 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'
+                }));
+            res.json(guilds);
+        } catch (e) {
+            res.json([]);
+        }
+    });
+
+    app.get('/api/channels/:guildId', async (req, res) => {
+        try {
+            const guild = req.client.guilds.cache.get(req.params.guildId);
+            if (!guild) return res.status(404).json({ error: 'Guild not found' });
+
+            const member = guild.members.cache.get(req.client.user.id) || await guild.members.fetch(req.client.user.id).catch(() => null);
+            const canManage = member ? member.permissions.has('MANAGE_CHANNELS') : false;
+            if (!canManage) return res.status(403).json({ error: 'Missing MANAGE_CHANNELS permission' });
+
+            const channels = guild.channels.cache.map(c => ({
+                id: c.id,
+                name: c.name,
+                type: c.type,
+                position: c.position,
+                parentId: c.parentId,
+                parentName: c.parent ? c.parent.name : null,
+                nsfw: c.nsfw || false,
+                deletable: c.deletable
+            })).sort((a, b) => a.position - b.position);
+
+            const categories = guild.channels.cache
+                .filter(c => c.type === 'GUILD_CATEGORY')
+                .map(c => ({ id: c.id, name: c.name }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            res.json({ channels, categories, canManage });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    app.post('/api/channels/create', async (req, res) => {
+        try {
+            const { guildId, name, type, nsfw, privacy, parentId, topic } = req.body;
+            if (!guildId || !name) return res.status(400).json({ error: 'Missing guildId or name' });
+
+            const guild = req.client.guilds.cache.get(guildId);
+            if (!guild) return res.status(404).json({ error: 'Guild not found' });
+
+            const permissionOverwrites = [];
+            if (privacy === 'private') {
+                permissionOverwrites.push({
+                    id: guild.roles.everyone.id,
+                    deny: ['VIEW_CHANNEL']
+                });
+            }
+
+            const createOptions = {
+                name: name.trim(),
+                type: type || 'GUILD_TEXT',
+                permissionOverwrites,
+                reason: 'Dashboard - Channel Creator'
+            };
+
+            if (parentId) createOptions.parent = parentId;
+
+            if (type === 'GUILD_TEXT' || type === 'GUILD_NEWS') {
+                if (typeof nsfw === 'boolean') createOptions.nsfw = nsfw;
+                if (topic) createOptions.topic = topic;
+            }
+
+            const channel = await guild.channels.create(createOptions.name, createOptions);
+
+            res.json({
+                success: true,
+                channel: { id: channel.id, name: channel.name, type: channel.type }
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    app.post('/api/channels/delete', async (req, res) => {
+        try {
+            const { guildId, channelIds } = req.body;
+            if (!guildId || !Array.isArray(channelIds) || channelIds.length === 0) {
+                return res.status(400).json({ error: 'Missing guildId or channelIds' });
+            }
+
+            const guild = req.client.guilds.cache.get(guildId);
+            if (!guild) return res.status(404).json({ error: 'Guild not found' });
+
+            const results = { deleted: [], failed: [] };
+
+            for (const id of channelIds) {
+                const channel = guild.channels.cache.get(id);
+                if (!channel) {
+                    results.failed.push({ id, reason: 'Not found' });
+                    continue;
+                }
+                if (!channel.deletable) {
+                    results.failed.push({ id, name: channel.name, reason: 'Not deletable' });
+                    continue;
+                }
+                try {
+                    await channel.delete('Dashboard - Channel Deleter');
+                    results.deleted.push({ id, name: channel.name });
+                    await new Promise(r => setTimeout(r, 800));
+                } catch (e) {
+                    results.failed.push({ id, name: channel.name, reason: e.message });
+                }
+            }
+
+            res.json({ success: true, ...results });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
     app.get('/commands/:category', (req, res) => {
         const category = req.params.category;
         res.render('commands_sub', {
