@@ -49,6 +49,348 @@
                 display: none;
             }
         }
+
+        .add-token-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 10px;
+            background: rgba(138, 43, 226, 0.1);
+            border: 1px dashed rgba(138, 43, 226, 0.5);
+            color: #a29bfe;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .add-token-btn:hover {
+            background: rgba(138, 43, 226, 0.2);
+            border-color: #8a2be2;
+            color: #fff;
+        }
+
+        .token-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+        }
+
+        .token-modal.open {
+            display: flex;
+        }
+
+        .token-modal-content {
+            background: #111116;
+            border: 1px solid #8a2be2;
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .token-modal-content h2 {
+            margin: 0 0 8px;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .token-modal-content p {
+            margin: 0 0 20px;
+            color: #888;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .token-input {
+            width: 100%;
+            padding: 14px;
+            background: #050508;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 12px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            outline: none;
+            transition: 0.3s;
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+
+        .token-input:focus {
+            border-color: #8a2be2;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.2);
+        }
+
+        .token-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: #15151a;
+            border-radius: 12px;
+            border: 1px solid #2ecc71;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            animation: slideUp 0.3s ease;
+        }
+
+        .token-preview img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #2ecc71;
+        }
+
+        .token-preview-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .token-preview-name {
+            font-weight: 700;
+            color: #fff;
+            font-size: 1.05rem;
+            margin-bottom: 3px;
+        }
+
+        .token-preview-id {
+            color: #888;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .token-msg {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .token-msg.success {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #2ecc71;
+            color: #2ecc71;
+            display: block;
+        }
+
+        .token-msg.error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+            display: block;
+        }
+
+        .token-modal-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .token-modal-btn {
+            flex: 1;
+            padding: 13px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #8a2be2, #6c5ce7);
+            color: #fff;
+            box-shadow: 0 5px 20px rgba(138, 43, 226, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .info-note {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(241, 196, 15, 0.05);
+            border: 1px solid rgba(241, 196, 15, 0.2);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            color: #f1c40f;
+            line-height: 1.5;
+        }
+
+        .custom-dropdown-container {
+            margin-top: 20px;
+            text-align: left;
+            width: 100%;
+            max-width: 250px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .custom-dropdown-label {
+            color: #b9bbbe;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .custom-dropdown {
+            position: relative;
+            user-select: none;
+        }
+
+        .dropdown-selected {
+            background: rgba(32, 34, 37, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .dropdown-selected:hover {
+            background: rgba(47, 49, 54, 0.9);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .dropdown-selected img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 10px;
+            object-fit: cover;
+        }
+
+        .dropdown-selected span {
+            color: #fff;
+            font-weight: 500;
+            flex-grow: 1;
+        }
+
+        .dropdown-selected i {
+            color: #b9bbbe;
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .custom-dropdown.open .dropdown-selected i {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 8px;
+            background: #2f3136;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .custom-dropdown.open .dropdown-options {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-option {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .dropdown-option:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .dropdown-option.active {
+            background: rgba(162, 155, 254, 0.2);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .dropdown-option.active span {
+            color: var(--primary-color);
+        }
+
+        .dropdown-option img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 10px;
+            object-fit: cover;
+        }
+
+        .dropdown-option span {
+            color: #dcddde;
+            font-weight: 500;
+        }
     </style>
 </head>
 
@@ -156,128 +498,57 @@
                         <% }) %>
                     </div>
                 </div>
+                <button class="add-token-btn" onclick="openTokenModal()">
+                    <i class="fas fa-plus-circle"></i> Add Another Token
+                </button>
             </div>
-
-            <style>
-                .custom-dropdown-container {
-                    margin-top: 20px;
-                    text-align: left;
-                    width: 100%;
-                    max-width: 250px;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-                .custom-dropdown-label {
-                    color: #b9bbbe;
-                    font-size: 0.85rem;
-                    margin-bottom: 8px;
-                    text-transform: uppercase;
-                    font-weight: bold;
-                    letter-spacing: 0.5px;
-                }
-                .custom-dropdown {
-                    position: relative;
-                    user-select: none;
-                }
-                .dropdown-selected {
-                    background: rgba(32, 34, 37, 0.8);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 8px;
-                    padding: 10px 15px;
-                    display: flex;
-                    align-items: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    backdrop-filter: blur(10px);
-                }
-                .dropdown-selected:hover {
-                    background: rgba(47, 49, 54, 0.9);
-                    border-color: rgba(255, 255, 255, 0.2);
-                }
-                .dropdown-selected img {
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
-                    margin-right: 10px;
-                    object-fit: cover;
-                }
-                .dropdown-selected span {
-                    color: #fff;
-                    font-weight: 500;
-                    flex-grow: 1;
-                }
-                .dropdown-selected i {
-                    color: #b9bbbe;
-                    font-size: 0.8rem;
-                    transition: transform 0.3s ease;
-                }
-                .custom-dropdown.open .dropdown-selected i {
-                    transform: rotate(180deg);
-                }
-                .dropdown-options {
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    right: 0;
-                    margin-top: 8px;
-                    background: #2f3136;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 8px;
-                    overflow: hidden;
-                    opacity: 0;
-                    visibility: hidden;
-                    transform: translateY(-10px);
-                    transition: all 0.3s ease;
-                    z-index: 100;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-                }
-                .custom-dropdown.open .dropdown-options {
-                    opacity: 1;
-                    visibility: visible;
-                    transform: translateY(0);
-                }
-                .dropdown-option {
-                    padding: 10px 15px;
-                    display: flex;
-                    align-items: center;
-                    cursor: pointer;
-                    transition: background 0.2s ease;
-                }
-                .dropdown-option:hover {
-                    background: rgba(255, 255, 255, 0.05);
-                }
-                .dropdown-option.active {
-                    background: rgba(162, 155, 254, 0.2);
-                    border-left: 3px solid var(--primary-color);
-                }
-                .dropdown-option.active span {
-                    color: var(--primary-color);
-                }
-                .dropdown-option img {
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
-                    margin-right: 10px;
-                    object-fit: cover;
-                }
-                .dropdown-option span {
-                    color: #dcddde;
-                    font-weight: 500;
-                }
-            </style>
             <% } %>
         </div>
 
     </div>
 
+    <div class="token-modal" id="tokenModal">
+        <div class="token-modal-content">
+            <h2><i class="fas fa-key" style="color:#8a2be2;"></i> Add Discord Token</h2>
+            <p>Paste a Discord token below to add it as a new client. The bot will validate it and log in instantly.</p>
+
+            <textarea id="tokenInput" class="token-input" placeholder="Paste your Discord token here..."></textarea>
+
+            <div class="token-preview" id="tokenPreview">
+                <img id="previewAvatar" src="" alt="avatar">
+                <div class="token-preview-info">
+                    <div class="token-preview-name" id="previewName">-</div>
+                    <div class="token-preview-id" id="previewId">-</div>
+                </div>
+                <i class="fas fa-check-circle" style="color:#2ecc71; font-size:1.5rem;"></i>
+            </div>
+
+            <div class="token-msg" id="tokenMsg"></div>
+
+            <div class="info-note">
+                <i class="fas fa-info-circle"></i>
+                On Railway, tokens added this way <b>will not persist across restarts</b>. To make it permanent, add them as <b>TOKEN2</b>, <b>TOKEN3</b>, etc. in your Railway Variables tab.
+            </div>
+
+            <div class="token-modal-btns">
+                <button class="token-modal-btn btn-secondary" onclick="closeTokenModal()">Cancel</button>
+                <button class="token-modal-btn btn-primary" id="btnAddToken" onclick="submitToken()" disabled>
+                    <i class="fas fa-plus"></i> Add Token
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let uptimeSeconds = <%= uptimeSeconds %>;
+        let tokenDebounce = null;
+        let validatedToken = null;
 
         function toggleDropdown() {
             document.getElementById('accountDropdown').classList.toggle('open');
         }
 
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const dropdown = document.getElementById('accountDropdown');
             if (dropdown && !dropdown.contains(event.target)) {
                 dropdown.classList.remove('open');
@@ -362,6 +633,126 @@
                 img.src = `${currentSrc}&t=${Date.now()}`;
             }
         }, 15000);
+
+        function openTokenModal() {
+            document.getElementById('tokenModal').classList.add('open');
+            document.getElementById('tokenInput').value = '';
+            document.getElementById('tokenPreview').style.display = 'none';
+            document.getElementById('tokenMsg').className = 'token-msg';
+            document.getElementById('tokenMsg').style.display = 'none';
+            document.getElementById('btnAddToken').disabled = true;
+            validatedToken = null;
+            setTimeout(() => document.getElementById('tokenInput').focus(), 100);
+        }
+
+        function closeTokenModal() {
+            document.getElementById('tokenModal').classList.remove('open');
+        }
+
+        document.getElementById('tokenModal').addEventListener('click', function (e) {
+            if (e.target === this) closeTokenModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeTokenModal();
+        });
+
+        document.getElementById('tokenInput').addEventListener('input', function () {
+            clearTimeout(tokenDebounce);
+            const val = this.value.trim();
+
+            document.getElementById('tokenPreview').style.display = 'none';
+            document.getElementById('tokenMsg').className = 'token-msg';
+            document.getElementById('tokenMsg').style.display = 'none';
+            document.getElementById('btnAddToken').disabled = true;
+            validatedToken = null;
+
+            if (val.length < 30) return;
+
+            tokenDebounce = setTimeout(() => validateToken(val), 700);
+        });
+
+        async function validateToken(token) {
+            const msgEl = document.getElementById('tokenMsg');
+            msgEl.className = 'token-msg';
+            msgEl.style.display = 'block';
+            msgEl.textContent = 'Validating token...';
+            msgEl.style.background = 'rgba(138, 43, 226, 0.1)';
+            msgEl.style.border = '1px solid #8a2be2';
+            msgEl.style.color = '#a29bfe';
+
+            try {
+                const res = await fetch('/api/tokens/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    validatedToken = token;
+                    document.getElementById('previewAvatar').src = data.user.avatar;
+                    document.getElementById('previewName').textContent = data.user.global_name || data.user.username;
+                    document.getElementById('previewId').textContent = 'ID: ' + data.user.id;
+                    document.getElementById('tokenPreview').style.display = 'flex';
+
+                    msgEl.className = 'token-msg success';
+                    msgEl.textContent = '✓ Token is valid';
+
+                    document.getElementById('btnAddToken').disabled = false;
+                } else {
+                    msgEl.className = 'token-msg error';
+                    msgEl.textContent = '✗ ' + (data.error || 'Invalid token');
+                    document.getElementById('btnAddToken').disabled = true;
+                }
+            } catch (e) {
+                msgEl.className = 'token-msg error';
+                msgEl.textContent = '✗ Network error: ' + e.message;
+                document.getElementById('btnAddToken').disabled = true;
+            }
+        }
+
+        async function submitToken() {
+            if (!validatedToken) return;
+
+            const btn = document.getElementById('btnAddToken');
+            const msgEl = document.getElementById('tokenMsg');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+            try {
+                const res = await fetch('/api/tokens/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: validatedToken })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    msgEl.className = 'token-msg success';
+                    msgEl.textContent = '✓ Token added! Switching to new account...';
+
+                    if (data.alreadyExists) {
+                        msgEl.textContent = 'ℹ️ Token already loaded. Switching...';
+                    }
+
+                    setTimeout(() => {
+                        switchClient(data.key);
+                    }, 800);
+                } else {
+                    msgEl.className = 'token-msg error';
+                    msgEl.textContent = '✗ ' + (data.error || 'Failed to add token');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-plus"></i> Add Token';
+                }
+            } catch (e) {
+                msgEl.className = 'token-msg error';
+                msgEl.textContent = '✗ Network error: ' + e.message;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Add Token';
+            }
+        }
     </script>
     <%- include('partials/super_button') %>
 </body>

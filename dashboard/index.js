@@ -1037,6 +1037,96 @@ module.exports = (clients) => {
         }
     });
 
+    app.post('/api/tokens/validate', async (req, res) => {
+        const { token } = req.body;
+        if (!token || typeof token !== 'string' || token.length < 30) {
+            return res.json({ success: false, error: 'Invalid token format' });
+        }
+
+        try {
+            const { fetch } = require('undici');
+            const r = await fetch('https://discord.com/api/v9/users/@me', {
+                headers: {
+                    'Authorization': token.trim(),
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9175 Chrome/128.0.6613.186 Electron/32.2.7 Safari/537.36'
+                }
+            });
+
+            if (r.status !== 200) {
+                return res.json({ success: false, error: 'Invalid token (Discord rejected it)' });
+            }
+
+            const user = await r.json();
+            res.json({
+                success: true,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    discriminator: user.discriminator,
+                    global_name: user.global_name,
+                    avatar: user.avatar
+                        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
+                        : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || 0) % 5}.png`
+                }
+            });
+        } catch (e) {
+            res.json({ success: false, error: 'Network error: ' + e.message });
+        }
+    });
+
+    app.post('/api/tokens/add', async (req, res) => {
+        const { token } = req.body;
+        if (!token || typeof token !== 'string' || token.length < 30) {
+            return res.json({ success: false, error: 'Invalid token' });
+        }
+
+        const cleanToken = token.trim();
+
+        const existing = clients.find(c => c.token === cleanToken);
+        if (existing) {
+            return res.json({
+                success: true,
+                alreadyExists: true,
+                key: existing.tokenKey,
+                message: 'Token already loaded'
+            });
+        }
+
+        const usedKeys = clients.map(c => c.tokenKey);
+        let nextKey = 'TOKEN2';
+        let n = 2;
+        while (usedKeys.includes(nextKey) && n < 100) {
+            n++;
+            nextKey = 'TOKEN' + n;
+        }
+
+        try {
+            global.setupClient({ key: nextKey, token: cleanToken }, 0);
+
+            await new Promise(r => setTimeout(r, 2500));
+
+            const newClient = global.clients.find(c => c.tokenKey === nextKey);
+            if (!newClient || !newClient.user) {
+                const idx = global.clients.findIndex(c => c.tokenKey === nextKey);
+                if (idx !== -1) global.clients.splice(idx, 1);
+                return res.json({ success: false, error: 'Failed to login with this token' });
+            }
+
+            res.json({
+                success: true,
+                key: nextKey,
+                user: {
+                    id: newClient.user.id,
+                    username: newClient.user.username,
+                    discriminator: newClient.user.discriminator,
+                    avatar: newClient.user.displayAvatarURL({ dynamic: true, size: 128 })
+                }
+            });
+        } catch (e) {
+            res.json({ success: false, error: e.message });
+        }
+    });
+
     app.get('/commands/:category', (req, res) => {
         const category = req.params.category;
         res.render('commands_sub', {

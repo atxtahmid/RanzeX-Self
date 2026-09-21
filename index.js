@@ -33,7 +33,7 @@ function setupClient(tokenData, delayMs = 0) {
     client.token = token;
     client.dataFolder = key === 'TOKEN' ? 'data' : key.toLowerCase() + 'data';
     client.tokenKey = key;
-    
+
     client.ttsMap = new Map();
     const voiceStates = {};
     client.lavalinkVoiceStates = voiceStates;
@@ -44,6 +44,13 @@ function setupClient(tokenData, delayMs = 0) {
             restHost: process.env.LAVALINK_REST,
             wsHost: process.env.LAVALINK_WS,
             password: process.env.LAVALINK_PASSWORD,
+            clientName: process.env.CLIENT_NAME || 'RanzeX',
+        });
+    } else {
+        lavalink = new Lavalink({
+            restHost: null,
+            wsHost: null,
+            password: null,
             clientName: process.env.CLIENT_NAME || 'RanzeX',
         });
     }
@@ -109,7 +116,7 @@ function setupClient(tokenData, delayMs = 0) {
         try {
             const waifuManager = require('./commands/waifuManager');
             waifuManager.initialize(client);
-        } catch (e) {}
+        } catch (e) { }
     });
 
     if (client.lavalink) {
@@ -164,7 +171,7 @@ function setupClient(tokenData, delayMs = 0) {
                         await client.lavalink.destroyPlayer(evt.guildId);
                         client.queueManager.delete(evt.guildId);
                         if (queue.textChannel) {
-                            queue.textChannel.send('```Queue finished' + (queue.autoplay ? ' (Autoplay failed to find songs)' : '') + '```').catch(()=>{});
+                            queue.textChannel.send('```Queue finished' + (queue.autoplay ? ' (Autoplay failed to find songs)' : '') + '```').catch(() => { });
                         }
                         return;
                     }
@@ -185,12 +192,12 @@ function setupClient(tokenData, delayMs = 0) {
                                 nowPlayingMsg += `  🎵 ${nextSong.info.title}\n`;
                                 nowPlayingMsg += `  👤 ${nextSong.info.author}\n`;
                                 nowPlayingMsg += '\n╰──────────────────────────────────╯\n```';
-                                queue.textChannel.send(nowPlayingMsg).catch(()=>{});
+                                queue.textChannel.send(nowPlayingMsg).catch(() => { });
                             }
                         } catch (err) {
                             console.error(`[Auto-play Error - ${key}]:`, err);
                             if (queue.textChannel) {
-                                queue.textChannel.send('```Error playing next song```').catch(()=>{});
+                                queue.textChannel.send('```Error playing next song```').catch(() => { });
                             }
                         }
                     }
@@ -220,12 +227,12 @@ function setupClient(tokenData, delayMs = 0) {
                         txt = txt.replace(/{user}/g, `<@${member.user.id}>`);
                         txt = txt.replace(/{server}/g, member.guild.name || 'Server');
                         txt = txt.replace(/{count}/g, member.guild.memberCount || 1);
-                        await channel.send(txt).catch(()=>{});
+                        await channel.send(txt).catch(() => { });
                     } else {
                         const { createCanvas, loadImage } = require('canvas');
                         const dataDir = path.join(__dirname, client.dataFolder);
                         const extList = ['.png', '.jpg', '.jpeg', '.webp'];
-                        let bgPath = path.join(__dirname, 'dashboard', 'public', 'welcome.jpg'); 
+                        let bgPath = path.join(__dirname, 'dashboard', 'public', 'welcome.jpg');
 
                         for (const ext of extList) {
                             const checkPath = path.join(dataDir, `welcome${ext}`);
@@ -255,12 +262,12 @@ function setupClient(tokenData, delayMs = 0) {
                         ctx.textAlign = 'center';
                         const lines = (setup.cardMessage || "WELCOME TO {server}\n{user}\nMember #{count}").split('\n');
                         let startY = 290;
-                        
+
                         lines.forEach((line) => {
                             let parsedLine = line.replace(/{server}/gi, cleanGuild)
-                                                 .replace(/{user}/gi, cleanUser)
-                                                 .replace(/{count}/gi, member.guild.memberCount.toString());
-                            
+                                .replace(/{user}/gi, cleanUser)
+                                .replace(/{count}/gi, member.guild.memberCount.toString());
+
                             if (line.toLowerCase().includes('{user}')) {
                                 ctx.font = 'bold 50px Arial';
                                 ctx.fillStyle = userColor;
@@ -302,7 +309,7 @@ function setupClient(tokenData, delayMs = 0) {
                                 attachment: buffer,
                                 name: 'welcome.png'
                             }]
-                        }).catch(()=>{});
+                        }).catch(() => { });
                     }
                 }
             }
@@ -371,7 +378,7 @@ function setupClient(tokenData, delayMs = 0) {
                     const now = Date.now();
                     const lastReply = afkCooldowns.get(message.author.id) || 0;
                     const startTime = afkData.startTime || 0;
-                    const cooldown = 5 * 60 * 1000; 
+                    const cooldown = 5 * 60 * 1000;
 
                     if (now - lastReply >= cooldown || lastReply < startTime) {
                         const reason = afkData.reason || "I'm currently AFK.";
@@ -390,13 +397,13 @@ function setupClient(tokenData, delayMs = 0) {
                     const igManager = require('./commands/igManager');
                     const igHandled = await igManager.handle(message);
                     if (igHandled) return;
-                } catch (e) {}
+                } catch (e) { }
 
                 try {
                     const ytManager = require('./commands/ytManager');
                     const ytHandled = await ytManager.handle(message);
                     if (ytHandled) return;
-                } catch (e) {}
+                } catch (e) { }
 
                 const calculator = require('./commands/calculator');
                 const handled = await calculator.handle(message);
@@ -461,13 +468,13 @@ function setupClient(tokenData, delayMs = 0) {
                             if (repliedMsg) {
                                 await repliedMsg.reply({ content: responseText, allowedMentions: { repliedUser: true } });
                             } else {
-                                await message.channel.send(responseText).catch(()=>{});
+                                await message.channel.send(responseText).catch(() => { });
                             }
                         } catch (e) {
-                            await message.channel.send(responseText).catch(()=>{});
+                            await message.channel.send(responseText).catch(() => { });
                         }
                     } else {
-                        await message.channel.send(responseText).catch(()=>{});
+                        await message.channel.send(responseText).catch(() => { });
                     }
                     return;
                 }
@@ -493,6 +500,8 @@ function setupClient(tokenData, delayMs = 0) {
         });
     }, delayMs);
 }
+
+global.setupClient = setupClient;
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('[Anti-Crash] Unhandled Promise Rejection:\n', reason);
