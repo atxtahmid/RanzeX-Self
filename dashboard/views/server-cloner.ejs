@@ -458,8 +458,27 @@
                     </div>
                 </div>
                 <div class="option-item" style="grid-column: span 2;">
-                    <span class="option-label">Update Server Name &amp; Icon</span>
-                    <label class="switch"><input type="checkbox" id="updateInfo"><span class="slider"></span></label>
+                    <span class="option-label">Update Server Name</span>
+                    <label class="switch"><input type="checkbox" id="updateName"><span class="slider"></span></label>
+                </div>
+                <div class="option-item" style="grid-column: span 2;">
+                    <span class="option-label">Update Server Icon</span>
+                    <label class="switch"><input type="checkbox" id="updateIcon"><span class="slider"></span></label>
+                </div>
+                <div class="option-item" style="grid-column: span 2; display: block;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="option-label">Update Server Banner</span>
+                        <label class="switch">
+                            <input type="checkbox" id="updateBanner" onchange="toggleBannerWarning(this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div id="bannerWarning"
+                        style="display: none; margin-top: 12px; font-size: 0.85rem; color: #ffaa00; background: rgba(255, 170, 0, 0.08); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #ffaa00;">
+                        <i class="fas fa-info-circle"></i>
+                        <b>Note:</b> Banner requires <b>Boost Level 2</b> (7+ boosts) on the target server, otherwise it
+                        will be skipped.
+                    </div>
                 </div>
             </div>
 
@@ -552,7 +571,9 @@
                     cloneChannels: document.getElementById('cloneChannels').checked,
                     cloneRoles: document.getElementById('cloneRoles').checked,
                     cloneEmojis: document.getElementById('cloneEmojis').checked,
-                    updateInfo: document.getElementById('updateInfo').checked
+                    updateName: document.getElementById('updateName').checked,
+                    updateIcon: document.getElementById('updateIcon').checked,
+                    updateBanner: document.getElementById('updateBanner').checked
                 };
 
                 const sourceId = document.getElementById('sourceId').value;
@@ -582,6 +603,22 @@
 
             function toggleEmojiWarning(el) {
                 const warning = document.getElementById('emojiWarning');
+                if (el.checked) {
+                    warning.style.display = 'block';
+                    warning.style.opacity = '0';
+                    warning.style.transform = 'translateY(-5px)';
+                    setTimeout(() => {
+                        warning.style.transition = 'all 0.3s ease';
+                        warning.style.opacity = '1';
+                        warning.style.transform = 'translateY(0)';
+                    }, 10);
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            function toggleBannerWarning(el) {
+                const warning = document.getElementById('bannerWarning');
                 if (el.checked) {
                     warning.style.display = 'block';
                     warning.style.opacity = '0';

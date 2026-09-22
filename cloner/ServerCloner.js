@@ -74,7 +74,9 @@ class ServerCloner {
                 cloneChannels: options.cloneChannels !== false,
                 cloneRoles: options.cloneRoles !== false,
                 cloneEmojis: options.cloneEmojis === true,
-                updateInfo: options.updateInfo === true
+                updateName: options.updateName === true,
+                updateIcon: options.updateIcon === true,
+                updateBanner: options.updateBanner === true
             };
 
             await this.deleteExistingContent(targetGuild, opts);
@@ -86,7 +88,9 @@ class ServerCloner {
             }
 
             if (opts.cloneEmojis && !this.stopped) await this.cloneEmojis(sourceGuild, targetGuild);
-            if (opts.updateInfo && !this.stopped) await this.cloneServerInfo(sourceGuild, targetGuild);
+            if ((opts.updateName || opts.updateIcon || opts.updateBanner) && !this.stopped) {
+                await this.cloneServerInfo(sourceGuild, targetGuild, opts);
+            }
 
             if (this.stopped) {
                 this.log(`⚠️ Cloning stopped by user.`);
@@ -176,7 +180,7 @@ class ServerCloner {
                     mentionable: role.mentionable,
                     reason: 'Server Cloner'
                 }), this.log);
-                
+
                 this.roleMapping.set(role.id, newRole.id);
                 this.log(`Created role: ${role.name}`);
                 this.stats.rolesCreated++;
@@ -202,7 +206,7 @@ class ServerCloner {
                     position: category.position,
                     reason: 'Server Cloner'
                 }), this.log);
-                
+
                 this.log(`Created category: ${category.name}`);
                 this.stats.categoriesCreated++;
                 await delay(2000);
@@ -247,7 +251,7 @@ class ServerCloner {
                 }
 
                 await withRetry(() => targetGuild.channels.create(channel.name, opts), this.log);
-                
+
                 this.log(`Created channel: ${channel.name}`);
                 this.stats.channelsCreated++;
                 await delay(2000);
@@ -265,7 +269,7 @@ class ServerCloner {
             try {
                 const data = await downloadImage(emoji.url);
                 await withRetry(() => targetGuild.emojis.create(data, emoji.name, { reason: 'Server Cloner' }), this.log);
-                
+
                 this.log(`Created emoji: ${emoji.name}`);
                 this.stats.emojisCreated++;
                 await delay(5000);
@@ -276,16 +280,50 @@ class ServerCloner {
         }
     }
 
-    async cloneServerInfo(sourceGuild, targetGuild) {
+    async cloneServerInfo(sourceGuild, targetGuild, opts) {
         this.log('🏠 Updating server info...');
         try {
-            await withRetry(() => targetGuild.setName(sourceGuild.name), this.log);
-            if (sourceGuild.iconURL()) {
-                const icon = await downloadImage(sourceGuild.iconURL({ format: 'png', size: 1024 }));
-                await withRetry(() => targetGuild.setIcon(icon), this.log);
+            if (opts.updateName) {
+                await withRetry(() => targetGuild.setName(sourceGuild.name), this.log);
+                this.log('✅ Server name updated.');
+                await delay(2000);
+            } else {
+                this.log('⏭️  Skipping name update.');
             }
-            this.log('Server info updated.');
-            await delay(2000);
+
+            if (opts.updateIcon) {
+                const iconUrl = sourceGuild.iconURL({ format: 'png', size: 1024 });
+                if (iconUrl) {
+                    const icon = await downloadImage(iconUrl);
+                    await withRetry(() => targetGuild.setIcon(icon), this.log);
+                    this.log('✅ Server icon updated.');
+                } else {
+                    this.log('⚠️ Source server has no icon, skipping.');
+                }
+                await delay(2000);
+            } else {
+                this.log('⏭️  Skipping icon update.');
+            }
+
+            if (opts.updateBanner) {
+                const bannerUrl = sourceGuild.bannerURL({ format: 'png', size: 1024 });
+                if (bannerUrl) {
+                    try {
+                        const banner = await downloadImage(bannerUrl);
+                        await withRetry(() => targetGuild.setBanner(banner), this.log);
+                        this.log('✅ Server banner updated.');
+                    } catch (e) {
+                        this.log(`⚠️ Failed to set banner: ${e.message}`);
+                        this.log('ℹ️  Banner requires Boost Level 2 (7+ boosts) on the target server.');
+                    }
+                } else {
+                    this.log('⚠️ Source server has no banner, skipping.');
+                }
+                await delay(2000);
+            } else {
+                this.log('⏭️  Skipping banner update.');
+            }
+
         } catch (e) {
             this.log(`Failed to update info: ${e.message}`);
         }
