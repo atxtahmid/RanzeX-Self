@@ -11,10 +11,12 @@ const fs = require('fs');
 const path = require('path');
 const Lavalink = require('./music/lavalink');
 const Queue = require('./music/queue');
+const backup = require('./backup');
 
 global.clients = [];
 global.totalTokens = 0;
 global.loggedInTokens = 0;
+global.loginQueue = Promise.resolve();
 const afkCooldowns = new Map();
 
 setInterval(() => {
@@ -79,7 +81,6 @@ function setupClient(tokenData, delayMs = 0) {
         const remain = global.totalTokens - global.loggedInTokens;
 
         console.log(`[${key}] Authenticated (${global.loggedInTokens}/${global.totalTokens}) - User: ${client.user.tag} (${client.user.id}) - Remaining: ${remain}`);
-
         console.log(`[${key}] RanzeX is ready!`);
         console.log(`[${key}] Loaded ${client.commands.size} commands`);
 
@@ -494,11 +495,22 @@ function setupClient(tokenData, delayMs = 0) {
 
     global.clients.push(client);
 
+    const delay = Math.max(delayMs, 0);
+
     setTimeout(() => {
-        client.login(token).catch(error => {
-            console.error(`[${key}] Failed to login:`, error.message);
+        global.loginQueue = global.loginQueue.then(async () => {
+            try {
+                console.log(`[${key}] Attempting login...`);
+                await client.login(token);
+                console.log(`[${key}] Login successful`);
+            } catch (error) {
+                console.error(`[${key}] Failed to login:`, error.message);
+                const idx = global.clients.findIndex(c => c.tokenKey === key);
+                if (idx !== -1) global.clients.splice(idx, 1);
+            }
         });
-    }, delayMs);
+        global.loginQueue = global.loginQueue.then(() => new Promise(r => setTimeout(r, 5000)));
+    }, delay);
 }
 
 global.setupClient = setupClient;
@@ -515,24 +527,44 @@ process.on('uncaughtExceptionMonitor', (error, origin) => {
     console.error('[Anti-Crash] Uncaught Exception Monitor:\n', error, '\nOrigin:', origin);
 });
 
-const tokens = [];
+const envTokens = [];
 for (const [key, value] of Object.entries(process.env)) {
     if ((key === 'TOKEN' || /^TOKEN\d+$/.test(key)) && value && value.trim() !== '') {
-        tokens.push({ key, token: value.trim() });
+        envTokens.push({ key, token: value.trim() });
     }
 }
 
-if (tokens.length === 0) {
-    console.error('Error: No TOKEN found in .env file');
+const storedTokensRaw = backup.loadStoredTokens();
+const storedTokens = Object.entries(storedTokensRaw).map(([key, token]) => ({ key, token }));
+
+const allTokens = [...envTokens];
+const seenValues = new Set(envTokens.map(t => t.token));
+
+for (const st of storedTokens) {
+    if (!st.token) continue;
+    if (seenValues.has(st.token)) continue;
+    let finalKey = st.key;
+    let n = 2;
+    while (allTokens.some(t => t.key === finalKey)) {
+        finalKey = 'TOKEN' + n;
+        n++;
+    }
+    allTokens.push({ key: finalKey, token: st.token });
+    seenValues.add(st.token);
+}
+
+if (allTokens.length === 0) {
+    console.error('Error: No TOKEN found in .env or stored tokens file');
     process.exit(1);
 }
 
-global.totalTokens = tokens.length;
+global.totalTokens = allTokens.length;
 console.log(`[Boot] Multi-Token Initialization Sequence Started`);
-console.log(`[Boot] Found ${global.totalTokens} accounts in .env`);
+console.log(`[Boot] Env tokens: ${envTokens.length} | Stored tokens: ${storedTokens.length} | Total: ${allTokens.length}`);
+console.log(`[Boot] Token storage: ${backup.getTokensFilePath()}`);
 
 let currentDelay = 0;
-for (const t of tokens) {
+for (const t of allTokens) {
     setupClient(t, currentDelay);
     currentDelay += 10000;
 }

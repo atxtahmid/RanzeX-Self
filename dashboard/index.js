@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const QuestManager = require('../quests/manager');
+const backup = require('../backup');
 const app = express();
 
 module.exports = (clients) => {
@@ -33,8 +34,18 @@ module.exports = (clients) => {
     });
 
     const MULTI_QUEST_MANAGERS = new Map();
+
+    function getQuestManager(tokenKey, token) {
+        if (MULTI_QUEST_MANAGERS.has(tokenKey)) {
+            return MULTI_QUEST_MANAGERS.get(tokenKey);
+        }
+        const mgr = new QuestManager(token);
+        MULTI_QUEST_MANAGERS.set(tokenKey, mgr);
+        return mgr;
+    }
+
     for (const c of clients) {
-        MULTI_QUEST_MANAGERS.set(c.tokenKey, new QuestManager(c.token));
+        getQuestManager(c.tokenKey, c.token);
     }
 
     const port = process.env.PORT || 3000;
@@ -190,24 +201,28 @@ module.exports = (clients) => {
     });
 
     app.post('/quest/start-all', (req, res) => {
-        MULTI_QUEST_MANAGERS.get(req.client.tokenKey).startAll();
+        const mgr = getQuestManager(req.client.tokenKey, req.client.token);
+        mgr.startAll();
         res.json({ success: true, message: 'Starting process...' });
     });
 
     app.post('/quest/stop-all', (req, res) => {
-        MULTI_QUEST_MANAGERS.get(req.client.tokenKey).stopAll();
+        const mgr = getQuestManager(req.client.tokenKey, req.client.token);
+        mgr.stopAll();
         res.json({ success: true, message: 'All quests stopped.' });
     });
 
     app.post('/quest/clear-logs', (req, res) => {
-        if (MULTI_QUEST_MANAGERS.get(req.client.tokenKey).clearLogs) MULTI_QUEST_MANAGERS.get(req.client.tokenKey).clearLogs();
+        const mgr = getQuestManager(req.client.tokenKey, req.client.token);
+        if (mgr.clearLogs) mgr.clearLogs();
         res.json({ success: true });
     });
 
     app.get('/api/quests', (req, res) => {
+        const mgr = getQuestManager(req.client.tokenKey, req.client.token);
         res.json({
-            logs: MULTI_QUEST_MANAGERS.get(req.client.tokenKey).globalLogs,
-            isRunning: MULTI_QUEST_MANAGERS.get(req.client.tokenKey).isRunning
+            logs: mgr.globalLogs,
+            isRunning: mgr.isRunning
         });
     });
 
@@ -1101,16 +1116,29 @@ module.exports = (clients) => {
         }
 
         try {
+            global.totalTokens++;
             global.setupClient({ key: nextKey, token: cleanToken }, 0);
 
-            await new Promise(r => setTimeout(r, 2500));
+            const deadline = Date.now() + 30000;
+            let newClient = null;
+            while (Date.now() < deadline) {
+                await new Promise(r => setTimeout(r, 1000));
+                newClient = global.clients.find(c => c.tokenKey === nextKey);
+                if (newClient && newClient.user) break;
+            }
 
-            const newClient = global.clients.find(c => c.tokenKey === nextKey);
             if (!newClient || !newClient.user) {
                 const idx = global.clients.findIndex(c => c.tokenKey === nextKey);
-                if (idx !== -1) global.clients.splice(idx, 1);
-                return res.json({ success: false, error: 'Failed to login with this token' });
+                if (idx !== -1) {
+                    try { global.clients[idx].destroy(); } catch (e) { }
+                    global.clients.splice(idx, 1);
+                }
+                global.totalTokens--;
+                return res.json({ success: false, error: 'Login timeout (30s). Token may be invalid or Discord rate-limited the login.' });
             }
+
+            getQuestManager(nextKey, cleanToken);
+            backup.addStoredToken(nextKey, cleanToken);
 
             res.json({
                 success: true,
@@ -1124,6 +1152,48 @@ module.exports = (clients) => {
             });
         } catch (e) {
             res.json({ success: false, error: e.message });
+        }
+    });
+
+    app.post('/api/tokens/remove', async (req, res) => {
+        const { key } = req.body;
+        if (!key || typeof key !== 'string') {
+            return res.json({ success: false, error: 'Missing token key' });
+        }
+
+        if (key === 'TOKEN') {
+            return res.json({ success: false, error: 'Cannot remove the main TOKEN (from env). Remove it from Railway Variables instead.' });
+        }
+
+        const envKeys = Object.keys(process.env).filter(k => k === 'TOKEN' || /^TOKEN\d+$/.test(k));
+        if (envKeys.includes(key)) {
+            return res.json({ success: false, error: `${key} is set via Railway env variables. Remove it from the Railway Variables tab.` });
+        }
+
+        const client = clients.find(c => c.tokenKey === key);
+        if (!client) {
+            backup.removeStoredToken(key);
+            return res.json({ success: true, message: 'Removed from storage' });
+        }
+
+        try {
+            if (MULTI_QUEST_MANAGERS.has(key)) {
+                const mgr = MULTI_QUEST_MANAGERS.get(key);
+                try { mgr.stopAll(); } catch (e) { }
+                MULTI_QUEST_MANAGERS.delete(key);
+            }
+
+            try { client.destroy(); } catch (e) { }
+
+            const idx = global.clients.findIndex(c => c.tokenKey === key);
+            if (idx !== -1) global.clients.splice(idx, 1);
+            if (global.totalTokens > 0) global.totalTokens--;
+
+            backup.removeStoredToken(key);
+
+            res.json({ success: true, removed: key });
+        } catch (e) {
+            res.status(500).json({ success: false, error: e.message });
         }
     });
 
