@@ -172,6 +172,36 @@ class QuestManagerBridge {
         }
     }
 
+    async runWithConcurrency(tasks, limit, manager) {
+        const executing = new Set();
+        const results = [];
+
+        for (const task of tasks) {
+            if (manager.stopped) break;
+
+            while (executing.size >= limit) {
+                await Promise.race(executing);
+            }
+
+            const p = (async () => {
+                try {
+                    const r = await task();
+                    results.push(r);
+                } catch (e) {
+                    results.push({ error: e.message });
+                } finally {
+                    executing.delete(p);
+                }
+            })();
+            executing.add(p);
+        }
+
+        if (executing.size > 0) {
+            await Promise.all(executing);
+        }
+        return results;
+    }
+
     async processQuestList(manager, quests) {
         const SUPPORTED = ['WATCH_VIDEO', 'WATCH_VIDEO_ON_MOBILE', 'PLAY_ON_DESKTOP', 'STREAM_ON_DESKTOP', 'PLAY_ACTIVITY'];
         const VIDEO_TASKS = new Set(['WATCH_VIDEO', 'WATCH_VIDEO_ON_MOBILE']);
@@ -218,11 +248,11 @@ class QuestManagerBridge {
         });
 
         if (unaccepted.length > 0) {
-            this.log('system', `Auto-enrolling ${unaccepted.length} quests...`);
+            this.log('system', `Auto-enrolling ${unaccepted.length} quests (sequential, ~2s each)...`);
             for (let i = 0; i < unaccepted.length; i++) {
                 const q = unaccepted[i];
                 const taskName = getTaskName(q);
-                this.log('system', `  → ${q.config.messages?.quest_name || q.config.application?.name} [${taskName}]`);
+                this.log('system', `  → [${i + 1}/${unaccepted.length}] ${q.config.messages?.quest_name || q.config.application?.name} [${taskName}]`);
                 if (manager.questMap.has(q.id)) {
                     manager.questMap.get(q.id).status = 'enrolling';
                 }
@@ -253,7 +283,7 @@ class QuestManagerBridge {
         const otherQuests = actionable.filter(q => !VIDEO_TASKS.has(getTaskName(q)));
         const ordered = [...videoQuests, ...otherQuests];
 
-        this.log('system', `${actionable.length} quest(s) to do (video=${videoQuests.length}, game=${otherQuests.length}) — video first, then game`);
+        this.log('system', `${actionable.length} quest(s) to do (video=${videoQuests.length}, game=${otherQuests.length}) — max ${MAX_WORKERS} concurrent`);
 
         for (const q of ordered) {
             if (manager.questMap.has(q.id)) {
@@ -261,41 +291,29 @@ class QuestManagerBridge {
             }
         }
 
-        const runOne = async (q, stagger) => {
-            if (stagger > 0) await sleep(stagger);
+        const runOne = (q, index) => async () => {
+            if (manager.stopped) return;
+            if (index > 0) {
+                await sleep(Math.min(ACTION_DELAY * index, 30000));
+            }
             if (manager.stopped) return;
             await manager.doingQuest(q);
         };
 
         if (videoQuests.length > 0 && !manager.stopped) {
-            this.log('system', `▶ PHASE 1: ${videoQuests.length} video quest (max ${MAX_WORKERS} threads)`);
-            const pool = [];
-            for (let i = 0; i < videoQuests.length; i++) {
-                const p = runOne(videoQuests[i], ACTION_DELAY * i);
-                pool.push(p);
-                if (pool.length >= MAX_WORKERS) {
-                    await Promise.race(pool);
-                    await Promise.race([Promise.all(pool), sleep(0)]);
-                }
-            }
-            await Promise.all(pool);
+            this.log('system', `▶ PHASE 1: ${videoQuests.length} video quest(s)`);
+            const tasks = videoQuests.map((q, i) => runOne(q, i));
+            await this.runWithConcurrency(tasks, MAX_WORKERS, manager);
             this.log('system', '✅ PHASE 1 done');
         }
 
         if (otherQuests.length > 0 && !manager.stopped) {
             const remaining = otherQuests.filter(q => !manager.completedIds.has(q.id));
             if (remaining.length > 0) {
-                this.log('system', `▶ PHASE 2: ${remaining.length} game quest (max ${MAX_WORKERS} threads)`);
-                const pool = [];
-                for (let i = 0; i < remaining.length; i++) {
-                    const p = runOne(remaining[i], ACTION_DELAY * i);
-                    pool.push(p);
-                    if (pool.length >= MAX_WORKERS) {
-                        await Promise.race(pool);
-                        await Promise.race([Promise.all(pool), sleep(0)]);
-                    }
-                }
-                await Promise.all(pool);
+                this.log('system', `▶ PHASE 2: ${remaining.length} game quest(s)`);
+                const tasks = remaining.map((q, i) => runOne(q, i));
+                await this.runWithConcurrency(tasks, MAX_WORKERS, manager);
+                this.log('system', '✅ PHASE 2 done');
             }
         }
 
