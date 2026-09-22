@@ -71,7 +71,7 @@
             font-size: 1.1rem;
         }
 
-        .server-input {
+        .server-select {
             width: 100%;
             padding: 18px;
             background: #0b0b10;
@@ -81,12 +81,25 @@
             font-family: 'Outfit', sans-serif;
             font-size: 1.1rem;
             transition: 0.3s;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a2be2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 20px;
+            padding-right: 45px;
         }
 
-        .server-input:focus {
+        .server-select:focus {
             border-color: #8a2be2;
             outline: none;
             box-shadow: 0 0 15px rgba(138, 43, 226, 0.2);
+        }
+
+        .server-select option {
+            background: #0b0b10;
+            color: #fff;
+            padding: 10px;
         }
 
         .server-preview {
@@ -333,6 +346,13 @@
             background: #555;
         }
 
+        .loading-text {
+            color: #8a2be2;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+
         @media(max-width: 1100px) {
             .cloner-container {
                 width: 100%;
@@ -378,9 +398,10 @@
                 line-height: 1.3;
             }
 
-            .server-input {
+            .server-select {
                 font-size: 16px;
                 padding: 12px;
+                padding-right: 40px;
             }
 
             .cloner-header p {
@@ -402,15 +423,17 @@
         <div class="section-card" id="configSection">
             <div class="server-input-group">
                 <div class="input-wrapper">
-                    <label class="input-label">Source Server ID</label>
-                    <input type="text" id="sourceId" class="server-input" placeholder="Enter Source Guild ID"
-                        onblur="fetchGuild('source')">
+                    <label class="input-label">Source Server</label>
+                    <select id="sourceId" class="server-select" onchange="fetchGuild('source')">
+                        <option value="">Loading servers...</option>
+                    </select>
                     <div id="sourcePreview" class="server-preview" style="display:none;"></div>
                 </div>
                 <div class="input-wrapper">
-                    <label class="input-label">Target Server ID</label>
-                    <input type="text" id="targetId" class="server-input" placeholder="Enter Target Guild ID"
-                        onblur="fetchGuild('target')">
+                    <label class="input-label">Target Server</label>
+                    <select id="targetId" class="server-select" onchange="fetchGuild('target')">
+                        <option value="">Loading servers...</option>
+                    </select>
                     <div id="targetPreview" class="server-preview" style="display:none;"></div>
                 </div>
             </div>
@@ -503,13 +526,45 @@
             let isCloning = false;
             let validSource = false;
             let validTarget = false;
+            let guildsLoaded = false;
+
+            async function loadGuilds() {
+                try {
+                    const res = await fetch('/api/cloner/guilds');
+                    const guilds = await res.json();
+
+                    const populate = (selectId, placeholder) => {
+                        const sel = document.getElementById(selectId);
+                        sel.innerHTML = `<option value="">${placeholder}</option>`;
+                        if (!guilds.length) {
+                            sel.innerHTML = '<option value="">No servers found</option>';
+                            return;
+                        }
+                        guilds.forEach(g => {
+                            const opt = document.createElement('option');
+                            opt.value = g.id;
+                            opt.textContent = g.name;
+                            sel.appendChild(opt);
+                        });
+                    };
+
+                    populate('sourceId', 'Select source server...');
+                    populate('targetId', 'Select target server...');
+                    guildsLoaded = true;
+                } catch (e) {
+                    console.error(e);
+                }
+            }
 
             async function fetchGuild(type) {
                 const id = document.getElementById(type + 'Id').value;
                 const preview = document.getElementById(type + 'Preview');
-                if (!id || id.length < 17) {
+
+                if (type === 'source') validSource = false; else validTarget = false;
+
+                if (!id) {
                     preview.style.display = 'none';
-                    if (type === 'source') validSource = false; else validTarget = false;
+                    checkBtn();
                     return;
                 }
 
@@ -682,8 +737,10 @@
                 } catch (e) { setTimeout(pollStatus, 5000); }
             }
 
-            pollStatus();
-
+            window.onload = () => {
+                loadGuilds();
+                pollStatus();
+            };
         </script>
 </body>
 

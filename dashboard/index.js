@@ -1619,6 +1619,19 @@ module.exports = (clients) => {
         });
     });
 
+    app.get('/api/cloner/guilds', (req, res) => {
+        try {
+            const guilds = req.client.guilds.cache.map(g => ({
+                id: g.id,
+                name: g.name,
+                icon: g.iconURL({ dynamic: true, size: 64 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'
+            })).sort((a, b) => a.name.localeCompare(b.name));
+            res.json(guilds);
+        } catch (e) {
+            res.json([]);
+        }
+    });
+
     app.post('/api/cloner/fetch', async (req, res) => {
         const { guildId } = req.body;
         try {
