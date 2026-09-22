@@ -31,6 +31,17 @@ function randomBetween(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+function qRaw(quest) {
+    return quest && quest.data ? quest.data : quest;
+}
+
+function isEnrolled(quest) {
+    const q = qRaw(quest);
+    if (!q) return false;
+    if (typeof quest.isEnrolledQuest === 'function') return quest.isEnrolledQuest();
+    return Boolean(q.user_status?.enrolled_at);
+}
+
 class QuestManager {
     constructor(client, quests, workerAPI) {
         this.client = client;
@@ -52,7 +63,8 @@ class QuestManager {
         let prefix = '';
         if (typeof questId === 'string' && msg) {
             const q = this.get(questId);
-            const name = q ? (q.config.messages.quest_name || q.config.application.name) : questId;
+            const qd = q ? qRaw(q) : null;
+            const name = qd ? (qd.config?.messages?.quest_name || qd.config?.application?.name) : questId;
             prefix = `[${name}] `;
         } else {
             msg = questId;
@@ -73,41 +85,48 @@ class QuestManager {
     }
 
     async enroll(quest) {
+        const q = qRaw(quest);
+        if (!q || !q.id) return false;
+
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-                const res = await this.api.post(`/quests/${quest.id}/enroll`, {
+                const res = await this.api.post(`/quests/${q.id}/enroll`, {
                     location: 11,
                     is_targeted: false,
                     metadata_raw: null,
                     metadata_sealed: null,
-                    traffic_metadata_raw: quest.data.traffic_metadata_raw,
-                    traffic_metadata_sealed: quest.data.traffic_metadata_sealed,
+                    traffic_metadata_raw: q.traffic_metadata_raw || null,
+                    traffic_metadata_sealed: q.traffic_metadata_sealed || null,
                 });
 
                 if (res.status === 429) {
                     let wait = 3;
                     if (res.body && res.body.retry_after) wait = res.body.retry_after;
-                    this.log(quest.id, `Rate limit enroll – waiting ${wait}s`);
+                    this.log(q.id, `Rate limit enroll – waiting ${wait}s`);
                     await sleep(wait * 1000);
                     continue;
                 }
                 if (res.status === 200 || res.status === 201 || res.status === 204) {
-                    this.log(quest.id, `✅ Enrolled`);
-                    if (res.body) quest.updateUserStatus(res.body);
+                    this.log(q.id, `✅ Enrolled`);
+                    if (res.body && typeof quest.updateUserStatus === 'function') {
+                        quest.updateUserStatus(res.body);
+                    } else if (res.body && q) {
+                        q.user_status = res.body;
+                    }
                     return true;
                 }
                 if (res.status === 404) {
-                    this.log(quest.id, `Enroll: 404 Not Found (expired), skipping`);
+                    this.log(q.id, `Enroll: 404 Not Found (expired), skipping`);
                     return false;
                 }
                 if (res.status === 403) {
-                    this.log(quest.id, `Enroll: 403 Forbidden, skipping`);
+                    this.log(q.id, `Enroll: 403 Forbidden, skipping`);
                     return false;
                 }
-                this.log(quest.id, `Enroll attempt ${attempt}/3 failed (${res.status})`);
+                this.log(q.id, `Enroll attempt ${attempt}/3 failed (${res.status})`);
                 if (attempt < 3) await sleep(1000);
             } catch (e) {
-                this.log(quest.id, `Enroll error ${attempt}/3: ${e.message}`);
+                this.log(q.id, `Enroll error ${attempt}/3: ${e.message}`);
                 if (attempt < 3) await sleep(1000);
             }
         }
@@ -154,25 +173,26 @@ class QuestManager {
     }
 
     async runVideo(quest, taskConfig, taskName) {
-        const name = quest.config.messages?.quest_name || quest.config.application?.name || quest.id;
+        const q = qRaw(quest);
+        const name = q.config?.messages?.quest_name || q.config?.application?.name || q.id;
         const target = taskConfig.target;
-        let current = quest.userStatus?.progress?.[taskName]?.value || 0;
+        let current = q.user_status?.progress?.[taskName]?.value || 0;
 
         const altTask = taskName === 'WATCH_VIDEO' ? 'WATCH_VIDEO_ON_MOBILE' : 'WATCH_VIDEO';
-        const config = quest.config.task_config || quest.config.task_config_v2;
+        const config = q.config.task_config || q.config.task_config_v2;
         const hasAlt = config?.tasks?.[altTask] !== undefined;
 
         if (target <= 0) {
-            this.log(quest.id, `seconds_needed=0, skipping`);
+            this.log(q.id, `seconds_needed=0, skipping`);
             return false;
         }
 
-        if (this.questMap.has(quest.id)) {
-            this.questMap.get(quest.id).secondsDone = current;
-            this.questMap.get(quest.id).secondsNeeded = target;
+        if (this.questMap.has(q.id)) {
+            this.questMap.get(q.id).secondsDone = current;
+            this.questMap.get(q.id).secondsNeeded = target;
         }
 
-        const enrolledAtStr = quest.userStatus?.enrolled_at;
+        const enrolledAtStr = q.user_status?.enrolled_at;
         let enrolledTs;
         if (enrolledAtStr) {
             try {
@@ -184,11 +204,11 @@ class QuestManager {
             enrolledTs = Date.now() / 1000 - current;
         }
 
-        this.log(quest.id, `Video: ${name} (${Math.floor(current)}/${target}s, type=${taskName})`);
+        this.log(q.id, `Video: ${name} (${Math.floor(current)}/${target}s, type=${taskName})`);
 
         const sendProgress = async (ts, useTask) => {
             try {
-                const r = await this.videoProgress(quest.id, ts);
+                const r = await this.videoProgress(q.id, ts);
                 if (r.status === 200) {
                     const body = r.body;
                     const progress = body.progress || {};
@@ -202,20 +222,20 @@ class QuestManager {
                     }
                     if (updated === current && ts > current) updated = Math.max(current, ts);
                     current = updated;
-                    if (this.questMap.has(quest.id)) {
-                        this.questMap.get(quest.id).secondsDone = updated;
+                    if (this.questMap.has(q.id)) {
+                        this.questMap.get(q.id).secondsDone = updated;
                     }
-                    this.log(quest.id, `${name}: ${Math.floor(updated)}/${target}s`);
+                    this.log(q.id, `${name}: ${Math.floor(updated)}/${target}s`);
                     const completed = Boolean(body.completed_at);
                     return { updated, completed, bail: false };
                 } else if (r.status === 429) {
                     let wait = 5;
-                    try { wait = r.body?.retry_after || 5; } catch (e) {}
-                    this.log(quest.id, `Rate limit video – waiting ${Math.floor(wait)}s`);
+                    try { wait = r.body?.retry_after || 5; } catch (e) { }
+                    this.log(q.id, `Rate limit video – waiting ${Math.floor(wait)}s`);
                     await sleep((wait + 1) * 1000);
                     return { updated: current, completed: false, bail: false };
                 } else if (r.status === 404) {
-                    this.log(quest.id, `Video 404`);
+                    this.log(q.id, `Video 404`);
                     return { updated: current, completed: false, bail: true };
                 } else if (r.status === 400) {
                     return { updated: current, completed: false, bail: false };
@@ -237,7 +257,7 @@ class QuestManager {
                 if (r.completed) return true;
             }
 
-            this.log(quest.id, `Step [${useTask}]: ${Math.floor(localDone)}s → ${target}s`);
+            this.log(q.id, `Step [${useTask}]: ${Math.floor(localDone)}s → ${target}s`);
 
             while (localDone < target && !this.stopped) {
                 const elapsed = Date.now() / 1000 - enrolledTs;
@@ -245,7 +265,7 @@ class QuestManager {
                 const nextTs = localDone + VIDEO_SPEED;
 
                 if (nextTs > maxAllowed && nextTs < target) {
-                    await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => {});
+                    await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => { });
                     continue;
                 }
 
@@ -259,13 +279,13 @@ class QuestManager {
                 if (localDone < sendTs - 1) {
                     localDone = Math.min(sendTs, target);
                     current = localDone;
-                    if (this.questMap.has(quest.id)) {
-                        this.questMap.get(quest.id).secondsDone = localDone;
+                    if (this.questMap.has(q.id)) {
+                        this.questMap.get(q.id).secondsDone = localDone;
                     }
                 }
 
                 if (localDone >= target) break;
-                await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => {});
+                await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => { });
             }
 
             if (!this.stopped) {
@@ -273,7 +293,7 @@ class QuestManager {
                     const r = await sendProgress(target, useTask);
                     if (r.completed) return true;
                     if (r.bail) break;
-                    if (i < 2) await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => {});
+                    if (i < 2) await this.sleep(VIDEO_REQUEST_INTERVAL).catch(() => { });
                 }
             }
 
@@ -281,55 +301,56 @@ class QuestManager {
                 const r = await this.api.get('/quests/@me');
                 if (r.status === 200) {
                     const ql = r.body.quests || [];
-                    for (const q of ql) {
-                        if (q.id === quest.id && q.user_status?.completed_at) return true;
+                    for (const rq of ql) {
+                        if (rq.id === q.id && rq.user_status?.completed_at) return true;
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             return false;
         };
 
         if (await doVideo(taskName)) {
-            this.log(quest.id, `✅ Video done [${taskName}]: ${name}`);
-            if (this.questMap.has(quest.id)) {
-                this.questMap.get(quest.id).secondsDone = target;
+            this.log(q.id, `✅ Video done [${taskName}]: ${name}`);
+            if (this.questMap.has(q.id)) {
+                this.questMap.get(q.id).secondsDone = target;
             }
             return true;
         }
 
         if (hasAlt && !this.stopped) {
-            this.log(quest.id, `Trying fallback [${altTask}] for ${name}`);
+            this.log(q.id, `Trying fallback [${altTask}] for ${name}`);
             if (await doVideo(altTask)) {
-                this.log(quest.id, `✅ Video done [${altTask}]: ${name}`);
-                if (this.questMap.has(quest.id)) {
-                    this.questMap.get(quest.id).secondsDone = target;
+                this.log(q.id, `✅ Video done [${altTask}]: ${name}`);
+                if (this.questMap.has(q.id)) {
+                    this.questMap.get(q.id).secondsDone = target;
                 }
                 return true;
             }
         }
 
-        this.log(quest.id, `⚠️ Video failed: ${name} (${Math.floor(current)}/${target}s)`);
+        this.log(q.id, `⚠️ Video failed: ${name} (${Math.floor(current)}/${target}s)`);
         return false;
     }
 
     async runPlay(quest, taskConfig, taskName) {
-        const appId = quest.config.application.id;
-        const appName = quest.config.application.name;
-        this.log(quest.id, `${taskName}: ${appName}`);
+        const q = qRaw(quest);
+        const appId = q.config.application.id;
+        const appName = q.config.application.name;
+        this.log(q.id, `${taskName}: ${appName}`);
 
         const target = taskConfig.target;
-        let current = quest.userStatus?.progress?.[taskName]?.value || 0;
+        let current = q.user_status?.progress?.[taskName]?.value || 0;
         const pid = Math.floor(Math.random() * (30000 - 1000)) + 1000;
 
-        if (this.questMap.has(quest.id)) {
-            this.questMap.get(quest.id).secondsDone = current;
-            this.questMap.get(quest.id).secondsNeeded = target;
+        if (this.questMap.has(q.id)) {
+            this.questMap.get(q.id).secondsDone = current;
+            this.questMap.get(q.id).secondsNeeded = target;
         }
 
         while (current < target && !this.stopped) {
             try {
-                const res = await this.heartbeat(quest.id, appId, false);
+                const res = await this.heartbeat(q.id, appId, false);
 
                 if (res.status === 200) {
                     const body = res.body;
@@ -340,47 +361,48 @@ class QuestManager {
                     }
                     const discordCompleted = Boolean(body.completed_at);
                     if (discordCompleted) current = target;
-                    if (this.questMap.has(quest.id)) {
-                        this.questMap.get(quest.id).secondsDone = current;
+                    if (this.questMap.has(q.id)) {
+                        this.questMap.get(q.id).secondsDone = current;
                     }
-                    this.log(quest.id, `${appName}: ${Math.floor(current)}/${target}s`);
+                    this.log(q.id, `${appName}: ${Math.floor(current)}/${target}s`);
                     if (discordCompleted || current >= target) break;
                 } else if (res.status === 429) {
                     const wait = res.body?.retry_after || 1;
                     await sleep(wait * 1000);
                     continue;
                 } else if (res.status === 400 || res.status === 404) {
-                    this.log(quest.id, `Quest invalid (${res.status}), skipping`);
+                    this.log(q.id, `Quest invalid (${res.status}), skipping`);
                     break;
                 }
             } catch (e) {
-                this.log(quest.id, `Heartbeat error: ${e.message}`);
+                this.log(q.id, `Heartbeat error: ${e.message}`);
             }
             await sleep(HEARTBEAT_INTERVAL);
         }
 
         try {
-            await this.heartbeat(quest.id, appId, true);
-        } catch (e) {}
+            await this.heartbeat(q.id, appId, true);
+        } catch (e) { }
 
         const ok = current >= target;
-        this.log(quest.id, ok ? `✅ Heartbeat done` : `⚠️ Heartbeat failed`);
+        this.log(q.id, ok ? `✅ Heartbeat done` : `⚠️ Heartbeat failed`);
         return ok;
     }
 
     async runActivity(quest, taskConfig, taskName) {
+        const q = qRaw(quest);
         const target = taskConfig.target;
-        let current = quest.userStatus?.progress?.PLAY_ACTIVITY?.value || 0;
+        let current = q.user_status?.progress?.PLAY_ACTIVITY?.value || 0;
         const streamKey = 'call:0:1';
 
-        if (this.questMap.has(quest.id)) {
-            this.questMap.get(quest.id).secondsDone = current;
-            this.questMap.get(quest.id).secondsNeeded = target;
+        if (this.questMap.has(q.id)) {
+            this.questMap.get(q.id).secondsDone = current;
+            this.questMap.get(q.id).secondsNeeded = target;
         }
 
         while (current < target && !this.stopped) {
             try {
-                const res = await this.api.post(`/quests/${quest.id}/heartbeat`, {
+                const res = await this.api.post(`/quests/${q.id}/heartbeat`, {
                     stream_key: streamKey,
                     terminal: false,
                 });
@@ -393,8 +415,8 @@ class QuestManager {
                     }
                     const discordCompleted = Boolean(body.completed_at);
                     if (discordCompleted) current = target;
-                    if (this.questMap.has(quest.id)) {
-                        this.questMap.get(quest.id).secondsDone = current;
+                    if (this.questMap.has(q.id)) {
+                        this.questMap.get(q.id).secondsDone = current;
                     }
                     if (discordCompleted || current >= target) break;
                 } else if (res.status === 429) {
@@ -405,41 +427,44 @@ class QuestManager {
                     break;
                 }
             } catch (e) {
-                this.log(quest.id, `Activity error: ${e.message}`);
+                this.log(q.id, `Activity error: ${e.message}`);
             }
             await sleep(HEARTBEAT_INTERVAL);
         }
 
         try {
-            await this.api.post(`/quests/${quest.id}/heartbeat`, {
+            await this.api.post(`/quests/${q.id}/heartbeat`, {
                 stream_key: streamKey,
                 terminal: true,
             });
-        } catch (e) {}
+        } catch (e) { }
 
         const ok = current >= target;
-        this.log(quest.id, ok ? `✅ Activity done` : `⚠️ Activity failed`);
+        this.log(q.id, ok ? `✅ Activity done` : `⚠️ Activity failed`);
         return ok;
     }
 
     async doingQuest(quest) {
-        if (this.stopped) return false;
-        if (this.completedIds.has(quest.id)) return true;
+        const q = qRaw(quest);
+        if (!q) return false;
 
-        const config = quest.config.task_config || quest.config.task_config_v2;
+        if (this.stopped) return false;
+        if (this.completedIds.has(q.id)) return true;
+
+        const config = q.config.task_config || q.config.task_config_v2;
         const tasks = config?.tasks;
         if (!tasks) return false;
 
         const taskName = Object.keys(tasks).find(k => SUPPORTED_TASKS.includes(k) && tasks[k]);
         if (!taskName) {
-            this.log(quest.id, 'Unsupported task, skipping');
+            this.log(q.id, 'Unsupported task, skipping');
             return false;
         }
 
-        this.log(quest.id, `━━━ ${quest.config.messages?.quest_name || quest.config.application?.name} (task: ${taskName}) ━━━`);
+        this.log(q.id, `━━━ ${q.config.messages?.quest_name || q.config.application?.name} (task: ${taskName}) ━━━`);
 
-        if (!quest.isEnrolledQuest()) {
-            this.log(quest.id, 'Enrolling...');
+        if (!isEnrolled(quest)) {
+            this.log(q.id, 'Enrolling...');
             const enrolled = await this.enroll(quest);
             if (!enrolled) return false;
         }
@@ -454,16 +479,16 @@ class QuestManager {
         }
 
         if (result) {
-            this.completedIds.add(quest.id);
-            this.retryCounts.delete(quest.id);
-            if (this.questMap.has(quest.id)) {
-                this.questMap.get(quest.id).status = 'done';
+            this.completedIds.add(q.id);
+            this.retryCounts.delete(q.id);
+            if (this.questMap.has(q.id)) {
+                this.questMap.get(q.id).status = 'done';
             }
         } else {
-            const retries = (this.retryCounts.get(quest.id) || 0) + 1;
-            this.retryCounts.set(quest.id, retries);
-            if (this.questMap.has(quest.id)) {
-                this.questMap.get(quest.id).status = 'failed';
+            const retries = (this.retryCounts.get(q.id) || 0) + 1;
+            this.retryCounts.set(q.id, retries);
+            if (this.questMap.has(q.id)) {
+                this.questMap.get(q.id).status = 'failed';
             }
         }
 
@@ -482,18 +507,18 @@ class QuestManager {
                     const res = await this.api.get('/quests/@me');
                     if (res.status !== 200) continue;
                     const remoteQuests = res.body.quests || [];
-                    for (const q of remoteQuests) {
-                        if (!this.questMap.has(q.id)) continue;
-                        const info = this.questMap.get(q.id);
+                    for (const rq of remoteQuests) {
+                        if (!this.questMap.has(rq.id)) continue;
+                        const info = this.questMap.get(rq.id);
                         if (info.status === 'done' || info.status === 'failed') continue;
-                        const cfg = q.config.task_config || q.config.task_config_v2;
+                        const cfg = rq.config.task_config || rq.config.task_config_v2;
                         const tasks = cfg?.tasks || {};
                         const tName = Object.keys(tasks).find(k => SUPPORTED_TASKS.includes(k));
                         if (!tName) continue;
-                        const progress = q.user_status?.progress?.[tName];
+                        const progress = rq.user_status?.progress?.[tName];
                         const realDone = progress ? (typeof progress === 'object' ? (progress.value || 0) : progress) : 0;
                         const realNeeded = tasks[tName]?.target || 0;
-                        if (q.user_status?.completed_at) {
+                        if (rq.user_status?.completed_at) {
                             info.secondsDone = realNeeded > 0 ? realNeeded : realDone;
                             info.status = 'done';
                         } else {
@@ -501,7 +526,7 @@ class QuestManager {
                             if (realNeeded > 0) info.secondsNeeded = realNeeded;
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
         };
 
