@@ -1,8 +1,6 @@
 const { ClientQuest, WorkerAPI, fetchBuildNumber } = require('./client');
 
 const POLL_INTERVAL = 5000;
-const MAX_WORKERS = 3;
-const ACTION_DELAY = 15000;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -172,36 +170,6 @@ class QuestManagerBridge {
         }
     }
 
-    async runWithConcurrency(tasks, limit, manager) {
-        const executing = new Set();
-        const results = [];
-
-        for (const task of tasks) {
-            if (manager.stopped) break;
-
-            while (executing.size >= limit) {
-                await Promise.race(executing);
-            }
-
-            const p = (async () => {
-                try {
-                    const r = await task();
-                    results.push(r);
-                } catch (e) {
-                    results.push({ error: e.message });
-                } finally {
-                    executing.delete(p);
-                }
-            })();
-            executing.add(p);
-        }
-
-        if (executing.size > 0) {
-            await Promise.all(executing);
-        }
-        return results;
-    }
-
     async processQuestList(manager, quests) {
         const SUPPORTED = ['WATCH_VIDEO', 'WATCH_VIDEO_ON_MOBILE', 'PLAY_ON_DESKTOP', 'STREAM_ON_DESKTOP', 'PLAY_ACTIVITY'];
         const VIDEO_TASKS = new Set(['WATCH_VIDEO', 'WATCH_VIDEO_ON_MOBILE']);
@@ -238,39 +206,10 @@ class QuestManagerBridge {
             }
         }
 
-        const unaccepted = quests.filter(q => {
-            const enrolled = !!q.user_status?.enrolled_at;
-            const completed = !!q.user_status?.completed_at;
-            const cfg = q.config.task_config || q.config.task_config_v2;
-            const tasks = cfg?.tasks || {};
-            const completable = Object.keys(tasks).some(k => SUPPORTED.includes(k) && tasks[k]);
-            return !enrolled && !completed && completable;
-        });
-
-        if (unaccepted.length > 0) {
-            this.log('system', `Auto-enrolling ${unaccepted.length} quests (sequential, ~2s each)...`);
-            for (let i = 0; i < unaccepted.length; i++) {
-                const q = unaccepted[i];
-                const taskName = getTaskName(q);
-                this.log('system', `  → [${i + 1}/${unaccepted.length}] ${q.config.messages?.quest_name || q.config.application?.name} [${taskName}]`);
-                if (manager.questMap.has(q.id)) {
-                    manager.questMap.get(q.id).status = 'enrolling';
-                }
-                await manager.enroll(q);
-                if (manager.questMap.has(q.id)) {
-                    manager.questMap.get(q.id).status = 'waiting';
-                }
-                if (i < unaccepted.length - 1) {
-                    await sleep(500 + Math.random() * 500);
-                }
-            }
-        }
-
         const actionable = quests.filter(q => {
-            const enrolled = !!q.user_status?.enrolled_at;
             const completed = !!q.user_status?.completed_at;
             const expired = q.config.expires_at && new Date(q.config.expires_at).getTime() < Date.now();
-            if (!enrolled || completed || expired) return false;
+            if (completed || expired) return false;
             if (manager.completedIds.has(q.id)) return false;
             const cfg = q.config.task_config || q.config.task_config_v2;
             const tasks = cfg?.tasks || {};
@@ -279,46 +218,92 @@ class QuestManagerBridge {
 
         if (actionable.length === 0) return;
 
-        const videoQuests = actionable.filter(q => VIDEO_TASKS.has(getTaskName(q)));
-        const otherQuests = actionable.filter(q => !VIDEO_TASKS.has(getTaskName(q)));
-        const ordered = [...videoQuests, ...otherQuests];
+        const enrolledNow = actionable.filter(q => !!q.user_status?.enrolled_at);
+        const needEnroll = actionable.filter(q => !q.user_status?.enrolled_at);
 
-        this.log('system', `${actionable.length} quest(s) to do (video=${videoQuests.length}, game=${otherQuests.length}) — max ${MAX_WORKERS} concurrent`);
+        const sortByType = (arr) => {
+            const vids = arr.filter(q => VIDEO_TASKS.has(getTaskName(q)));
+            const games = arr.filter(q => !VIDEO_TASKS.has(getTaskName(q)));
+            return [...vids, ...games];
+        };
 
-        for (const q of ordered) {
+        const ordered = [...sortByType(enrolledNow), ...sortByType(needEnroll)];
+
+        this.log('system', `${ordered.length} quest(s) to process (${enrolledNow.length} enrolled, ${needEnroll.length} need enroll)`);
+
+        let enrolledCount = 0;
+        let completedCount = 0;
+        let failedCount = 0;
+        let hitRateLimit = false;
+
+        for (let i = 0; i < ordered.length; i++) {
+            if (manager.stopped || hitRateLimit) break;
+
+            const q = ordered[i];
+            const taskName = getTaskName(q);
+            const name = q.config.messages?.quest_name || q.config.application?.name || q.id;
+            const progress = `[${i + 1}/${ordered.length}]`;
+
+            const isEnrolled = !!q.user_status?.enrolled_at;
+
+            if (!isEnrolled) {
+                if (manager.questMap.has(q.id)) {
+                    manager.questMap.get(q.id).status = 'enrolling';
+                }
+
+                const beforeLogs = this.globalLogs.length;
+                const ok = await manager.enroll(q);
+                const newLogs = this.globalLogs.slice(beforeLogs);
+
+                if (!ok) {
+                    const wasRateLimited = newLogs.some(l => l.includes('Rate limit'));
+                    if (wasRateLimited) {
+                        this.log('system', `${progress} ${name} [${taskName}] — ⏳ rate limited, halting phase`);
+                        if (manager.questMap.has(q.id)) {
+                            manager.questMap.get(q.id).status = 'waiting';
+                        }
+                        hitRateLimit = true;
+                        break;
+                    }
+                    failedCount++;
+                    if (manager.questMap.has(q.id)) {
+                        manager.questMap.get(q.id).status = 'failed';
+                    }
+                    this.log('system', `${progress} ${name} [${taskName}] — ❌ enroll failed`);
+                    continue;
+                }
+
+                enrolledCount++;
+                q.user_status = q.user_status || {};
+                q.user_status.enrolled_at = new Date().toISOString();
+
+                if (manager.questMap.has(q.id)) {
+                    manager.questMap.get(q.id).status = 'running';
+                }
+
+                this.log('system', `${progress} ${name} [${taskName}] — ✅ enrolled`);
+                await sleep(3000);
+            }
+
             if (manager.questMap.has(q.id)) {
                 manager.questMap.get(q.id).status = 'running';
             }
-        }
 
-        const runOne = (q, index) => async () => {
-            if (manager.stopped) return;
-            if (index > 0) {
-                await sleep(Math.min(ACTION_DELAY * index, 30000));
+            const ok = await manager.doingQuest(q);
+            if (ok) {
+                completedCount++;
+                this.log('system', `${progress} ${name} [${taskName}] — 🎉 completed`);
+            } else {
+                failedCount++;
+                this.log('system', `${progress} ${name} [${taskName}] — ⚠️ completion failed`);
             }
-            if (manager.stopped) return;
-            await manager.doingQuest(q);
-        };
 
-        if (videoQuests.length > 0 && !manager.stopped) {
-            this.log('system', `▶ PHASE 1: ${videoQuests.length} video quest(s)`);
-            const tasks = videoQuests.map((q, i) => runOne(q, i));
-            await this.runWithConcurrency(tasks, MAX_WORKERS, manager);
-            this.log('system', '✅ PHASE 1 done');
-        }
-
-        if (otherQuests.length > 0 && !manager.stopped) {
-            const remaining = otherQuests.filter(q => !manager.completedIds.has(q.id));
-            if (remaining.length > 0) {
-                this.log('system', `▶ PHASE 2: ${remaining.length} game quest(s)`);
-                const tasks = remaining.map((q, i) => runOne(q, i));
-                await this.runWithConcurrency(tasks, MAX_WORKERS, manager);
-                this.log('system', '✅ PHASE 2 done');
+            if (i < ordered.length - 1 && !manager.stopped && !hitRateLimit) {
+                await sleep(3000);
             }
         }
 
-        const completedCount = ordered.filter(q => manager.completedIds.has(q.id)).length;
-        this.log('system', `Completed ${completedCount} quest(s)`);
+        this.log('system', `Scan summary: enrolled=${enrolledCount}, completed=${completedCount}, failed=${failedCount}${hitRateLimit ? ' (stopped early on rate limit)' : ''}`);
     }
 
     stopAll() {

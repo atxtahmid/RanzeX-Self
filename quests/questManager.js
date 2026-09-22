@@ -10,6 +10,7 @@ const VIDEO_MAX_FUTURE = 60;
 const ENROLL_DELAY_MIN = 500;
 const ENROLL_DELAY_MAX = 1000;
 const ACTION_DELAY = 15000;
+const ENROLL_MAX_WAIT = 60;
 
 const SUPPORTED_TASKS = [
     'WATCH_VIDEO',
@@ -102,12 +103,17 @@ class QuestManager {
                 if (res.status === 429) {
                     let wait = 3;
                     if (res.body && res.body.retry_after) wait = res.body.retry_after;
-                    this.log(q.id, `Rate limit enroll – waiting ${wait}s`);
+
+                    if (wait > ENROLL_MAX_WAIT) {
+                        this.log(q.id, `Rate limit enroll – ${Math.floor(wait)}s (too long, skipping)`);
+                        return false;
+                    }
+
+                    this.log(q.id, `Rate limit enroll – waiting ${Math.floor(wait)}s`);
                     await sleep(wait * 1000);
                     continue;
                 }
                 if (res.status === 200 || res.status === 201 || res.status === 204) {
-                    this.log(q.id, `✅ Enrolled`);
                     if (res.body && typeof quest.updateUserStatus === 'function') {
                         quest.updateUserStatus(res.body);
                     } else if (res.body && q) {
@@ -204,8 +210,6 @@ class QuestManager {
             enrolledTs = Date.now() / 1000 - current;
         }
 
-        this.log(q.id, `Video: ${name} (${Math.floor(current)}/${target}s, type=${taskName})`);
-
         const sendProgress = async (ts, useTask) => {
             try {
                 const r = await this.videoProgress(q.id, ts);
@@ -225,17 +229,18 @@ class QuestManager {
                     if (this.questMap.has(q.id)) {
                         this.questMap.get(q.id).secondsDone = updated;
                     }
-                    this.log(q.id, `${name}: ${Math.floor(updated)}/${target}s`);
                     const completed = Boolean(body.completed_at);
                     return { updated, completed, bail: false };
                 } else if (r.status === 429) {
                     let wait = 5;
                     try { wait = r.body?.retry_after || 5; } catch (e) { }
+                    if (wait > 60) {
+                        return { updated: current, completed: false, bail: true };
+                    }
                     this.log(q.id, `Rate limit video – waiting ${Math.floor(wait)}s`);
                     await sleep((wait + 1) * 1000);
                     return { updated: current, completed: false, bail: false };
                 } else if (r.status === 404) {
-                    this.log(q.id, `Video 404`);
                     return { updated: current, completed: false, bail: true };
                 } else if (r.status === 400) {
                     return { updated: current, completed: false, bail: false };
@@ -256,8 +261,6 @@ class QuestManager {
                 if (r.bail) return false;
                 if (r.completed) return true;
             }
-
-            this.log(q.id, `Step [${useTask}]: ${Math.floor(localDone)}s → ${target}s`);
 
             while (localDone < target && !this.stopped) {
                 const elapsed = Date.now() / 1000 - enrolledTs;
@@ -311,7 +314,6 @@ class QuestManager {
         };
 
         if (await doVideo(taskName)) {
-            this.log(q.id, `✅ Video done [${taskName}]: ${name}`);
             if (this.questMap.has(q.id)) {
                 this.questMap.get(q.id).secondsDone = target;
             }
@@ -319,9 +321,8 @@ class QuestManager {
         }
 
         if (hasAlt && !this.stopped) {
-            this.log(q.id, `Trying fallback [${altTask}] for ${name}`);
+            this.log(q.id, `Trying fallback [${altTask}]`);
             if (await doVideo(altTask)) {
-                this.log(q.id, `✅ Video done [${altTask}]: ${name}`);
                 if (this.questMap.has(q.id)) {
                     this.questMap.get(q.id).secondsDone = target;
                 }
@@ -329,7 +330,6 @@ class QuestManager {
             }
         }
 
-        this.log(q.id, `⚠️ Video failed: ${name} (${Math.floor(current)}/${target}s)`);
         return false;
     }
 
@@ -337,11 +337,9 @@ class QuestManager {
         const q = qRaw(quest);
         const appId = q.config.application.id;
         const appName = q.config.application.name;
-        this.log(q.id, `${taskName}: ${appName}`);
 
         const target = taskConfig.target;
         let current = q.user_status?.progress?.[taskName]?.value || 0;
-        const pid = Math.floor(Math.random() * (30000 - 1000)) + 1000;
 
         if (this.questMap.has(q.id)) {
             this.questMap.get(q.id).secondsDone = current;
@@ -364,14 +362,13 @@ class QuestManager {
                     if (this.questMap.has(q.id)) {
                         this.questMap.get(q.id).secondsDone = current;
                     }
-                    this.log(q.id, `${appName}: ${Math.floor(current)}/${target}s`);
                     if (discordCompleted || current >= target) break;
                 } else if (res.status === 429) {
                     const wait = res.body?.retry_after || 1;
+                    if (wait > 60) break;
                     await sleep(wait * 1000);
                     continue;
                 } else if (res.status === 400 || res.status === 404) {
-                    this.log(q.id, `Quest invalid (${res.status}), skipping`);
                     break;
                 }
             } catch (e) {
@@ -385,7 +382,6 @@ class QuestManager {
         } catch (e) { }
 
         const ok = current >= target;
-        this.log(q.id, ok ? `✅ Heartbeat done` : `⚠️ Heartbeat failed`);
         return ok;
     }
 
@@ -421,6 +417,7 @@ class QuestManager {
                     if (discordCompleted || current >= target) break;
                 } else if (res.status === 429) {
                     const wait = res.body?.retry_after || 1;
+                    if (wait > 60) break;
                     await sleep(wait * 1000);
                     continue;
                 } else if (res.status === 400 || res.status === 404) {
@@ -440,7 +437,6 @@ class QuestManager {
         } catch (e) { }
 
         const ok = current >= target;
-        this.log(q.id, ok ? `✅ Activity done` : `⚠️ Activity failed`);
         return ok;
     }
 
@@ -464,7 +460,6 @@ class QuestManager {
         this.log(q.id, `━━━ ${q.config.messages?.quest_name || q.config.application?.name} (task: ${taskName}) ━━━`);
 
         if (!isEnrolled(quest)) {
-            this.log(q.id, 'Enrolling...');
             const enrolled = await this.enroll(quest);
             if (!enrolled) return false;
         }
